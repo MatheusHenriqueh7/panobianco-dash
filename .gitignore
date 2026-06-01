@@ -1,0 +1,4 @@
+# Artefatos locais de preview/desenvolvimento
+.preview-server.ps1
+.claude/launch.json
+.__check.js

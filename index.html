@@ -317,7 +317,7 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
         <select id="unitSel" onchange="render()"></select>
       </div>
       <button class="btn btn-ghost" onclick="document.getElementById('tokenModal').style.display='flex'">⚙ Token</button>
-      <button class="btn" id="btnRefresh" onclick="fetchAll()">↻ Atualizar</button>
+      <button class="btn" id="btnRefresh" onclick="fetchAll(true)">↻ Atualizar</button>
     </div>
   </div>
   <div class="content" id="content"></div>
@@ -341,11 +341,11 @@ const UNIDADES = [
   { id: "1476215899083710",  nome: "Barra Bonita" },
   { id: "1374018689303432",  nome: "Campestre" },
   { id: "1534633956575237",  nome: "Pereira Barreto" },
-  { id: "1611727625532536",  nome: "Santa Lucréia" },
+  { id: "1611727625532536",  nome: "Lorena" },
   { id: "329817199287951",   nome: "Caxias RJ" },
   { id: "642335825534761",   nome: "Votuporanga" },
   { id: "25052320904357565", nome: "VeraCruz" },
-  { id: "24324838040468354", nome: "Curução" },
+  { id: "24324838040468354", nome: "Curuça" },
   { id: "342452664785881",   nome: "Jd Dona Benta" },
   { id: "1719214925258407",  nome: "Campo Limpo" },
   { id: "3522572947930191",  nome: "Vazame" },
@@ -356,6 +356,8 @@ const UNIDADES = [
   { id: "1153616979566102",  nome: "Condado" },
   { id: "2384148928647338",  nome: "Mococa" },
   { id: "225387132294461",   nome: "(sem nome)" },
+  // TODO: Diário Ville — adicionar aqui quando o ID da conta de anúncios for informado:
+  // { id: "<ID_DA_CONTA>", nome: "Diário Ville" },
 ];
 
 const CORES = [
@@ -366,13 +368,12 @@ const CORES = [
   "#60D0D0","#40B0B0","#FF9040"
 ];
 
-const KEYWORDS_LEADS = ["FORM","LEAD","WPP","WHATSAPP","CAPTACAO","MATRICULA","CONVERSAO"];
-const KEYWORDS_BRANDING = ["INSTAGRAM","BRANDING","PERFIL","SEGUIDOR","ENGAJAMENTO","RECONHECIMENTO","TRAFEGO"];
-
 let TOKEN = "";
 let DEMO = true;
 let DATA = [];
 let PERIOD = "last_15d";
+let VIEW = "Performance";          // aba ativa: Performance | Leads | Branding IG | Conjuntos
+const cache = {};                  // dados já carregados por período: { last_15d: [...], last_30d: [...] }
 let barChart = null, donutChart = null;
 
 // ─────────────────────────────────────────────
@@ -396,83 +397,97 @@ function getSinceUntil() {
   let since;
   if (PERIOD === "last_15d") { since = new Date(today); since.setDate(today.getDate() - 15); }
   else if (PERIOD === "last_30d") { since = new Date(today); since.setDate(today.getDate() - 30); }
-  else { since = new Date(today.getFullYear(), today.getMonth(), 1); }
+  else if (PERIOD === "mes") { since = new Date(today.getFullYear(), today.getMonth(), 1); }
+  else { since = new Date(today); since.setDate(today.getDate() - 15); } // fallback seguro
   return { since: fmt(since), until: fmt(today) };
 }
 
 // ─────────────────────────────────────────────
 // FETCH DADOS REAIS
 // ─────────────────────────────────────────────
-async function fetchAll() {
-  if (DEMO) { DATA = gerarDemo(); populaFiltro(); render(); return; }
+async function fetchAll(force = false) {
+  if (DEMO) { DATA = gerarDemo(); cache[PERIOD] = DATA; populaFiltro(); render(); return; }
 
-  const btn = document.getElementById('btnRefresh');
-  btn.textContent = '↻ Carregando...'; btn.disabled = true;
+  // Cache por período: voltar para um filtro já carregado é instantâneo.
+  // Use o botão "↻ Atualizar" para forçar uma nova busca.
+  if (!force && cache[PERIOD]) { DATA = cache[PERIOD]; populaFiltro(); render(); return; }
 
+  setLoading(true);
   const { since, until } = getSinceUntil();
-  const timeRange = JSON.stringify({ since, until });
-  const fields = "spend,actions,impressions,clicks";
 
-  DATA = [];
-  for (const u of UNIDADES) {
-    try {
-      const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=account`;
-      const res = await apiCall(endpoint);
-      const ins = res.data?.[0] || null;
-
-      const gasto = ins ? parseFloat(ins.spend || 0) : 0;
-      const leads = ins ? extrairAcao(ins.actions, ['lead','onsite_conversion.lead_grouped','onsite_conversion.messaging_conversation_started_7d']) : 0;
-      const visitas = ins ? extrairAcao(ins.actions, ['instagram_profile_visit','page_engagement','post_engagement']) : 0;
-      const impressoes = ins ? parseInt(ins.impressions || 0) : 0;
-      const cliques = ins ? parseInt(ins.clicks || 0) : 0;
-      const cpl = leads > 0 ? gasto / leads : 0;
-      const cpv = visitas > 0 ? gasto / visitas : 0;
-      const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
-
-      // Melhor adset
-      const adset = await fetchMelhorAdset(u.id, since, until);
-
-      DATA.push({
-        id: u.id, nome: u.nome,
-        gasto, leads, cpl: +cpl.toFixed(2),
-        visitas, cpv: +cpv.toFixed(2),
-        impressoes, cliques, ctr: +ctr.toFixed(2),
-        melhorAdset: adset.nome, adsetLeads: adset.leads,
-        adsetCpl: adset.cpl, adsetGasto: adset.gasto,
-        status: cpl === 0 ? 'a' : cpl <= 13 ? 'g' : cpl <= 17 ? 'a' : 'r',
-      });
-
-      await sleep(150);
-    } catch(e) {
-      console.error(u.nome, e.message);
-      DATA.push({ id: u.id, nome: u.nome, gasto:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' });
-    }
-  }
+  // Todas as unidades em paralelo (máx. 5 simultâneas p/ respeitar o rate limit da Meta).
+  DATA = await mapLimit(UNIDADES, 5, u => fetchUnidade(u, since, until));
+  cache[PERIOD] = DATA;
 
   document.getElementById('dot').classList.add('live');
   document.getElementById('connLabel').textContent = 'Conectado';
   document.getElementById('lastSync').textContent = '↺ ' + new Date().toLocaleTimeString('pt-BR');
   populaFiltro(); render();
-  btn.textContent = '↻ Atualizar'; btn.disabled = false;
+  setLoading(false);
 }
 
-async function fetchMelhorAdset(accId, since, until) {
+// Carrega insights + conjuntos de UMA unidade (as duas chamadas em paralelo).
+async function fetchUnidade(u, since, until) {
+  const vazio = { id: u.id, nome: u.nome, gasto:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
   try {
     const timeRange = JSON.stringify({ since, until });
-    const endpoint = `act_${accId}/adsets?fields=name,insights.time_range(${encodeURIComponent(timeRange)}){spend,actions}&limit=20`;
+    const fields = "spend,actions,impressions,clicks";
+    const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=account`;
+
+    const [res, adsets] = await Promise.all([
+      apiCall(endpoint),
+      fetchAdsets(u.id, since, until),
+    ]);
+
+    const ins = res.data?.[0] || null;
+    const gasto = ins ? parseFloat(ins.spend || 0) : 0;
+    const leads = ins ? extrairAcao(ins.actions, ['lead','onsite_conversion.lead_grouped','onsite_conversion.messaging_conversation_started_7d']) : 0;
+    const visitas = ins ? extrairAcao(ins.actions, ['instagram_profile_visit','page_engagement','post_engagement']) : 0;
+    const impressoes = ins ? parseInt(ins.impressions || 0) : 0;
+    const cliques = ins ? parseInt(ins.clicks || 0) : 0;
+    const cpl = leads > 0 ? gasto / leads : 0;
+    const cpv = visitas > 0 ? gasto / visitas : 0;
+    const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
+
+    const best = melhorAdset(adsets);
+
+    return {
+      id: u.id, nome: u.nome,
+      gasto, leads, cpl: +cpl.toFixed(2),
+      visitas, cpv: +cpv.toFixed(2),
+      impressoes, cliques, ctr: +ctr.toFixed(2),
+      adsets,
+      melhorAdset: best.nome, adsetLeads: best.leads, adsetCpl: best.cpl, adsetGasto: best.gasto,
+      status: cpl === 0 ? 'a' : cpl <= 13 ? 'g' : cpl <= 17 ? 'a' : 'r',
+    };
+  } catch (e) {
+    console.error(u.nome, e.message);
+    return vazio;
+  }
+}
+
+// Retorna TODOS os conjuntos da unidade (nome, gasto, leads, cpl). Alimenta a aba Conjuntos e o "melhor conjunto".
+async function fetchAdsets(accId, since, until) {
+  try {
+    const timeRange = JSON.stringify({ since, until });
+    const endpoint = `act_${accId}/adsets?fields=name,insights.time_range(${encodeURIComponent(timeRange)}){spend,actions}&limit=50`;
     const res = await apiCall(endpoint);
-    let best = { nome: '—', leads: 0, cpl: 0, gasto: 0 };
-    let minCpl = Infinity;
-    for (const adset of (res.data || [])) {
-      const ins = adset.insights?.data?.[0];
-      if (!ins) continue;
-      const g = parseFloat(ins.spend || 0);
-      const l = extrairAcao(ins.actions, ['lead','onsite_conversion.lead_grouped']);
-      const c = l > 0 ? g / l : Infinity;
-      if (c < minCpl) { minCpl = c; best = { nome: adset.name, leads: l, cpl: +c.toFixed(2), gasto: +g.toFixed(2) }; }
-    }
-    return best;
-  } catch { return { nome: '—', leads: 0, cpl: 0, gasto: 0 }; }
+    return (res.data || []).map(a => {
+      const ins = a.insights?.data?.[0];
+      const g = ins ? parseFloat(ins.spend || 0) : 0;
+      const l = ins ? extrairAcao(ins.actions, ['lead','onsite_conversion.lead_grouped']) : 0;
+      return { nome: a.name, gasto: +g.toFixed(2), leads: l, cpl: l > 0 ? +(g / l).toFixed(2) : 0 };
+    }).filter(a => a.gasto > 0 || a.leads > 0);
+  } catch { return []; }
+}
+
+function melhorAdset(adsets) {
+  let best = { nome: '—', leads: 0, cpl: 0, gasto: 0 };
+  let minCpl = Infinity;
+  for (const a of adsets) {
+    if (a.leads > 0 && a.cpl < minCpl) { minCpl = a.cpl; best = a; }
+  }
+  return best;
 }
 
 function extrairAcao(actions, tipos) {
@@ -480,12 +495,32 @@ function extrairAcao(actions, tipos) {
   return actions.filter(a => tipos.includes(a.action_type)).reduce((s,a) => s + parseInt(a.value || 0), 0);
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+// Concorrência limitada: roda no máximo `limit` promessas ao mesmo tempo.
+async function mapLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let i = 0;
+  const worker = async () => {
+    while (i < items.length) {
+      const idx = i++;
+      results[idx] = await fn(items[idx], idx);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('btnRefresh');
+  if (!btn) return;
+  btn.textContent = on ? '↻ Carregando...' : '↻ Atualizar';
+  btn.disabled = on;
+}
 
 // ─────────────────────────────────────────────
 // DEMO DATA
 // ─────────────────────────────────────────────
 function gerarDemo() {
+  const nomesAdset = ["Público aberto 25-45","Lookalike 1%","Engajamento IG","Interesse fitness","Remarketing forms","Público local 18-40","Captação WhatsApp","Branding perfil"];
   return UNIDADES.map((u, i) => {
     const gasto = 550 + Math.random() * 270;
     const leads = Math.floor(25 + Math.random() * 55);
@@ -493,9 +528,19 @@ function gerarDemo() {
     const impressoes = Math.floor(15000 + Math.random() * 35000);
     const cliques = Math.floor(impressoes * (0.008 + Math.random() * 0.02));
     const cpl = gasto / leads;
-    const adsets = ["Público aberto 25-45","Lookalike 1%","Engajamento IG","Interesse fitness","Remarketing forms","Público local 18-40"];
-    const adsetLeads = Math.floor(leads * 0.55);
-    const adsetGasto = gasto * 0.55;
+
+    // 3 a 5 conjuntos fictícios que somam ~o total da unidade
+    const nAdsets = 3 + Math.floor(Math.random() * 3);
+    let restanteG = gasto, restanteL = leads;
+    const adsets = Array.from({ length: nAdsets }, (_, k) => {
+      const last = k === nAdsets - 1;
+      const g = last ? restanteG : restanteG * (0.25 + Math.random() * 0.3);
+      const l = last ? restanteL : Math.floor(restanteL * (0.25 + Math.random() * 0.3));
+      restanteG -= g; restanteL -= l;
+      return { nome: nomesAdset[(i + k) % nomesAdset.length], gasto: +g.toFixed(2), leads: l, cpl: l > 0 ? +(g / l).toFixed(2) : 0 };
+    });
+    const best = melhorAdset(adsets);
+
     return {
       id: u.id, nome: u.nome,
       gasto: +gasto.toFixed(2), leads,
@@ -503,9 +548,8 @@ function gerarDemo() {
       cpv: +(gasto/visitas).toFixed(2),
       impressoes, cliques,
       ctr: +((cliques/impressoes)*100).toFixed(2),
-      melhorAdset: adsets[i % adsets.length],
-      adsetLeads, adsetCpl: +(adsetGasto/adsetLeads).toFixed(2),
-      adsetGasto: +adsetGasto.toFixed(2),
+      adsets,
+      melhorAdset: best.nome, adsetLeads: best.leads, adsetCpl: best.cpl, adsetGasto: best.gasto,
       status: cpl <= 13 ? 'g' : cpl <= 17 ? 'a' : 'r',
     };
   });
@@ -534,33 +578,34 @@ function render() {
   const el = document.getElementById('content');
   el.innerHTML = '';
 
+  // limpa gráficos antigos antes de remover os <canvas> do DOM
+  if (barChart) { barChart.destroy(); barChart = null; }
+  if (donutChart) { donutChart.destroy(); donutChart = null; }
+
   if (!dados.length) { el.innerHTML = '<div class="alert">⚠ Nenhum dado disponível.</div>'; return; }
-
-  const tG = dados.reduce((s,d) => s + d.gasto, 0);
-  const tL = dados.reduce((s,d) => s + d.leads, 0);
-  const tV = dados.reduce((s,d) => s + d.visitas, 0);
-  const tI = dados.reduce((s,d) => s + d.impressoes, 0);
-  const cplM = tL > 0 ? tG / tL : 0;
-  const cpvM = tV > 0 ? tG / tV : 0;
-
   if (DEMO) el.innerHTML += `<div class="alert">⚡ Modo demonstração ativo — conecte seu token Meta API para dados reais.</div>`;
 
-  // KPIs
-  el.innerHTML += `<div class="kpi-grid stagger">
-    <div class="kpi"><span class="kpi-icon">💰</span><div class="kpi-label">Investimento total</div><div class="kpi-val"><span>R$</span> ${fmt(tG)}</div><div class="kpi-sub neutral">${dados.length} unidades ativas</div></div>
-    <div class="kpi"><span class="kpi-icon">🎯</span><div class="kpi-label">Leads gerados</div><div class="kpi-val">${tL.toLocaleString('pt-BR')}</div><div class="kpi-sub neutral">via formulários</div></div>
-    <div class="kpi"><span class="kpi-icon">📉</span><div class="kpi-label">CPL médio</div><div class="kpi-val"><span>R$</span> ${cplM.toFixed(2)}</div><div class="kpi-sub ${cplM<=13?'up':'down'}">${cplM<=13?'▲ Dentro da meta':'▼ Acima da meta R$13'}</div></div>
-    <div class="kpi"><span class="kpi-icon">📱</span><div class="kpi-label">Visitas perfil IG</div><div class="kpi-val">${tV.toLocaleString('pt-BR')}</div><div class="kpi-sub neutral">R$ ${cpvM.toFixed(2)} por visita</div></div>
-  </div>`;
+  if (VIEW === 'Leads') renderLeads(el, dados);
+  else if (VIEW === 'Branding IG') renderBranding(el, dados);
+  else if (VIEW === 'Conjuntos') renderConjuntos(el, dados);
+  else renderPerformance(el, dados);
+}
 
-  // Charts row
-  el.innerHTML += `<div class="charts-row">
-    <div class="card"><div class="card-hd"><div class="card-title">CPL por unidade</div><div class="chip">Meta: R$ 13,00</div></div><div style="position:relative;height:240px"><canvas id="barC"></canvas></div></div>
-    <div class="card"><div class="card-hd"><div class="card-title">Investimento</div></div><div class="donut-wrap"><canvas id="donutC" width="150" height="150"></canvas><div class="donut-legend" id="donutLeg"></div></div></div>
-  </div>`;
-
-  // Tabela principal
+// ── PERFORMANCE: visão geral (investimento + leads + IG) ──
+function renderPerformance(el, dados) {
+  const tG = sum(dados,'gasto'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
+  const cplM = tL > 0 ? tG/tL : 0, cpvM = tV > 0 ? tG/tV : 0;
   const maxG = Math.max(...dados.map(d => d.gasto));
+
+  el.innerHTML += `<div class="kpi-grid stagger">
+    ${kpiCard('💰','Investimento total',`<span>R$</span> ${fmt(tG)}`,'neutral',`${dados.length} unidades ativas`)}
+    ${kpiCard('🎯','Leads gerados', tL.toLocaleString('pt-BR'),'neutral','via formulários')}
+    ${kpiCard('📉','CPL médio',`<span>R$</span> ${cplM.toFixed(2)}`, cplM<=13?'up':'down', cplM<=13?'▲ Dentro da meta':'▼ Acima da meta R$13')}
+    ${kpiCard('📱','Visitas perfil IG', tV.toLocaleString('pt-BR'),'neutral',`R$ ${cpvM.toFixed(2)} por visita`)}
+  </div>`;
+
+  el.innerHTML += chartsRow('CPL por unidade','Meta: R$ 13,00','Investimento');
+
   el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Performance por unidade</div><div class="chip">${dados.length} unidades</div></div>
   <div class="table-wrap"><table>
     <thead><tr><th>Unidade</th><th>Gasto (R$)</th><th>Leads</th><th>CPL (R$)</th><th>CTR (%)</th><th>Visitas IG</th><th>Custo/Visita</th><th>Status</th><th>Invest.</th></tr></thead>
@@ -573,62 +618,149 @@ function render() {
       <td>${d.visitas.toLocaleString('pt-BR')}</td>
       <td style="color:var(--text-sec)">R$ ${d.cpv.toFixed(2)}</td>
       <td>${statusBadge(d)}</td>
-      <td><div class="bar-track"><div class="bar-fill" style="width:${Math.round((d.gasto/maxG)*100)}%"></div></div></td>
+      <td><div class="bar-track"><div class="bar-fill" style="width:${pct(d.gasto,maxG)}%"></div></div></td>
     </tr>`).join('')}</tbody>
   </table></div></div>`;
 
-  // Bottom grid
   el.innerHTML += `<div class="bottom-grid">
     <div class="card"><div class="card-hd"><div class="card-title">Melhor conjunto por unidade</div><div class="chip">menor CPL</div></div>
-      ${dados.filter(d=>d.melhorAdset&&d.melhorAdset!=='—').slice(0,10).map(d=>`<div class="adset-row"><div><div class="adset-unit">${d.nome}</div><div class="adset-name">${d.melhorAdset}</div></div><div class="adset-cpl">R$ ${d.adsetCpl>0?d.adsetCpl.toFixed(2):'—'}</div></div>`).join('')}
+      ${dados.filter(d=>d.melhorAdset&&d.melhorAdset!=='—').slice(0,10).map(d=>`<div class="adset-row"><div><div class="adset-unit">${d.nome}</div><div class="adset-name">${d.melhorAdset}</div></div><div class="adset-cpl">R$ ${d.adsetCpl>0?d.adsetCpl.toFixed(2):'—'}</div></div>`).join('') || vazioInline('Sem conjuntos com leads no período.')}
     </div>
     <div class="card"><div class="card-hd"><div class="card-title">Ranking de leads</div><div class="chip">top unidades</div></div>
       <table><thead><tr><th>#</th><th>Unidade</th><th>Leads</th><th>CPL</th></tr></thead>
       <tbody>${[...dados].sort((a,b)=>b.leads-a.leads).slice(0,10).map((d,i)=>`<tr>
-        <td style="color:${i===0?'var(--orange)':i===1?'#aaa':i===2?'#885522':'var(--text-dim)'};font-weight:600">${i+1}</td>
+        <td style="color:${rankColor(i)};font-weight:600">${i+1}</td>
         <td>${d.nome}</td><td><strong>${d.leads}</strong></td><td>${d.cpl>0?badgeCpl(d.cpl):'—'}</td>
       </tr>`).join('')}</tbody></table>
     </div>
   </div>`;
 
-  // Render charts
   requestAnimationFrame(() => {
-    if (barChart) barChart.destroy();
-    const bc = document.getElementById('barC')?.getContext('2d');
-    if (bc) {
-      barChart = new Chart(bc, {
-        type: 'bar',
-        data: {
-          labels: dados.map(d => d.nome),
-          datasets: [{
-            label: 'CPL (R$)', data: dados.map(d => d.cpl),
-            backgroundColor: dados.map(d => d.cpl===0?'rgba(255,255,255,0.05)':d.cpl<=13?'rgba(62,207,142,0.6)':d.cpl<=17?'rgba(245,166,35,0.6)':'rgba(240,96,96,0.6)'),
-            borderColor: dados.map(d => d.cpl===0?'rgba(255,255,255,0.1)':d.cpl<=13?'#3ECF8E':d.cpl<=17?'#F5A623':'#F06060'),
-            borderWidth: 1, borderRadius: 4,
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display:false }, tooltip: { callbacks: { label: c => ` R$ ${c.raw.toFixed(2)}` } } },
-          scales: {
-            x: { ticks: { color:'#555', font:{size:10}, maxRotation:45 }, grid: { color:'rgba(255,255,255,0.03)' } },
-            y: { ticks: { color:'#555', font:{size:10}, callback: v => 'R$'+v }, grid: { color:'rgba(255,255,255,0.05)' } }
-          }
-        }
-      });
-    }
+    drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
+    drawDonut(dados.map(d=>d.nome), dados.map(d=>d.gasto), v=>` R$ ${v.toFixed(0)}`, v=>'R$'+Math.round(v));
+  });
+}
 
-    if (donutChart) donutChart.destroy();
-    const dc = document.getElementById('donutC')?.getContext('2d');
-    if (dc) {
-      donutChart = new Chart(dc, {
-        type: 'doughnut',
-        data: { labels: dados.map(d=>d.nome), datasets: [{ data: dados.map(d=>d.gasto), backgroundColor: CORES.slice(0,dados.length), borderWidth: 0, hoverOffset: 4 }] },
-        options: { cutout:'68%', plugins: { legend:{display:false}, tooltip: { callbacks: { label: c => ` R$ ${c.raw.toFixed(0)}` } } } }
-      });
-      const leg = document.getElementById('donutLeg');
-      if (leg) leg.innerHTML = dados.slice(0,8).map((d,i)=>`<div class="leg-item"><div class="leg-left"><div class="leg-dot" style="background:${CORES[i]}"></div><div class="leg-name">${d.nome}</div></div><div class="leg-val">R$${d.gasto.toFixed(0)}</div></div>`).join('') + (dados.length>8?`<div style="font-size:10px;color:var(--text-dim);margin-top:4px">+${dados.length-8} unidades</div>`:'');
-    }
+// ── LEADS: foco em geração de leads e CPL ──
+function renderLeads(el, dados) {
+  const tG = sum(dados,'gasto'), tL = sum(dados,'leads'), tI = sum(dados,'impressoes'), tC = sum(dados,'cliques');
+  const cplM = tL>0 ? tG/tL : 0;
+  const ctrM = tI>0 ? (tC/tI)*100 : 0;
+  const comLeads = dados.filter(d=>d.leads>0 && d.cpl>0);
+  const melhor = comLeads.length ? comLeads.reduce((a,b)=>a.cpl<=b.cpl?a:b) : null;
+  const acima = dados.filter(d=>d.cpl>13).length;
+
+  el.innerHTML += `<div class="kpi-grid stagger">
+    ${kpiCard('🎯','Leads gerados', tL.toLocaleString('pt-BR'),'neutral',`via formulários · ${dados.length} unidades`)}
+    ${kpiCard('📉','CPL médio',`<span>R$</span> ${cplM.toFixed(2)}`, cplM<=13?'up':'down', cplM<=13?'▲ Dentro da meta R$13':'▼ Acima da meta R$13')}
+    ${kpiCard('🖱️','CTR médio',`${ctrM.toFixed(2)}<span>%</span>`,'neutral',`${tC.toLocaleString('pt-BR')} cliques`)}
+    ${kpiCard('🏆','Melhor unidade', melhor?melhor.nome:'—', melhor?'up':'neutral', melhor?`CPL R$ ${melhor.cpl.toFixed(2)}`:'sem leads')}
+  </div>`;
+
+  el.innerHTML += chartsRow('CPL por unidade','Meta: R$ 13,00','Leads por unidade');
+
+  el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Geração de leads por unidade</div><div class="chip">${acima} acima da meta</div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Unidade</th><th>Gasto (R$)</th><th>Leads</th><th>CPL (R$)</th><th>CTR (%)</th><th>Status</th></tr></thead>
+    <tbody>${[...dados].sort((a,b)=>b.leads-a.leads).map(d=>`<tr>
+      <td class="fw">${d.nome}</td>
+      <td>R$ ${fmt(d.gasto)}</td>
+      <td><strong>${d.leads}</strong></td>
+      <td>${d.cpl>0?badgeCpl(d.cpl):'—'}</td>
+      <td>${d.ctr>0?d.ctr.toFixed(2)+'%':'—'}</td>
+      <td>${statusBadge(d)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div></div>`;
+
+  requestAnimationFrame(() => {
+    drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
+    drawDonut(dados.map(d=>d.nome), dados.map(d=>d.leads), v=>` ${v} leads`, v=>v);
+  });
+}
+
+// ── BRANDING IG: foco em alcance/visitas no perfil (sem "via formulário") ──
+function renderBranding(el, dados) {
+  const tG = sum(dados,'gasto'), tV = sum(dados,'visitas'), tI = sum(dados,'impressoes'), tC = sum(dados,'cliques');
+  const cpvM = tV>0 ? tG/tV : 0;
+  const ctrM = tI>0 ? (tC/tI)*100 : 0;
+  const maxG = Math.max(...dados.map(d=>d.gasto));
+
+  el.innerHTML += `<div class="kpi-grid stagger">
+    ${kpiCard('📱','Visitas no perfil IG', tV.toLocaleString('pt-BR'),'neutral',`em ${dados.length} unidades`)}
+    ${kpiCard('💸','Custo por visita',`<span>R$</span> ${cpvM.toFixed(2)}`,'neutral','investimento ÷ visitas')}
+    ${kpiCard('👁️','Impressões', tI.toLocaleString('pt-BR'),'neutral','alcance das campanhas')}
+    ${kpiCard('🤝','Engajamento (cliques)', tC.toLocaleString('pt-BR'),'neutral',`CTR ${ctrM.toFixed(2)}%`)}
+  </div>`;
+
+  el.innerHTML += chartsRow('Custo por visita (R$)','quanto menor, melhor','Visitas por unidade');
+
+  el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Branding &amp; alcance por unidade</div><div class="chip">Instagram</div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Unidade</th><th>Gasto (R$)</th><th>Impressões</th><th>Cliques</th><th>CTR (%)</th><th>Visitas IG</th><th>Custo/Visita</th><th>Invest.</th></tr></thead>
+    <tbody>${[...dados].sort((a,b)=>b.visitas-a.visitas).map(d=>`<tr>
+      <td class="fw">${d.nome}</td>
+      <td>R$ ${fmt(d.gasto)}</td>
+      <td>${d.impressoes.toLocaleString('pt-BR')}</td>
+      <td>${d.cliques.toLocaleString('pt-BR')}</td>
+      <td>${d.ctr>0?d.ctr.toFixed(2)+'%':'—'}</td>
+      <td><strong>${d.visitas.toLocaleString('pt-BR')}</strong></td>
+      <td style="color:var(--text-sec)">R$ ${d.cpv.toFixed(2)}</td>
+      <td><div class="bar-track"><div class="bar-fill" style="width:${pct(d.gasto,maxG)}%"></div></div></td>
+    </tr>`).join('')}</tbody>
+  </table></div></div>`;
+
+  requestAnimationFrame(() => {
+    drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpv), orangeBar, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
+    drawDonut(dados.map(d=>d.nome), dados.map(d=>d.visitas), v=>` ${v.toLocaleString('pt-BR')} visitas`, v=>v.toLocaleString('pt-BR'));
+  });
+}
+
+// ── CONJUNTOS: todos os adsets das unidades filtradas, ranqueados por CPL ──
+function renderConjuntos(el, dados) {
+  const todos = [];
+  dados.forEach(d => (d.adsets||[]).forEach(a => todos.push({ ...a, unidade: d.nome })));
+
+  if (!todos.length) {
+    el.innerHTML += `<div class="card">${vazioInline('Nenhum conjunto no período. Conecte o token Meta para carregar os conjuntos reais (no modo demo eles são gerados automaticamente).')}</div>`;
+    return;
+  }
+
+  const comLeads = todos.filter(a => a.leads > 0 && a.cpl > 0);
+  const tG = sum(todos,'gasto'), tL = sum(todos,'leads');
+  const cplM = tL>0 ? tG/tL : 0;
+  const melhor = comLeads.length ? comLeads.reduce((a,b)=>a.cpl<=b.cpl?a:b) : null;
+
+  el.innerHTML += `<div class="kpi-grid stagger">
+    ${kpiCard('≡','Conjuntos ativos', todos.length.toLocaleString('pt-BR'),'neutral',`em ${dados.length} unidades`)}
+    ${kpiCard('🏆','Melhor conjunto', melhor?melhor.nome:'—', melhor?'up':'neutral', melhor?`${melhor.unidade} · R$ ${melhor.cpl.toFixed(2)}`:'sem leads')}
+    ${kpiCard('📉','CPL médio (conjuntos)',`<span>R$</span> ${cplM.toFixed(2)}`, cplM<=13?'up':'down', cplM<=13?'▲ dentro da meta':'▼ acima da meta')}
+    ${kpiCard('💰','Gasto em conjuntos',`<span>R$</span> ${fmt(tG)}`,'neutral',`${tL.toLocaleString('pt-BR')} leads`)}
+  </div>`;
+
+  el.innerHTML += chartsRow('Top conjuntos · menor CPL','Meta: R$ 13,00','Gasto por conjunto');
+
+  const ordenados = [...todos].sort((a,b)=>{
+    const ca = a.cpl>0?a.cpl:Infinity, cb = b.cpl>0?b.cpl:Infinity;
+    return ca-cb;
+  });
+  el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Todos os conjuntos</div><div class="chip">${todos.length} conjuntos</div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Conjunto</th><th>Unidade</th><th>Gasto (R$)</th><th>Leads</th><th>CPL (R$)</th></tr></thead>
+    <tbody>${ordenados.map((a,i)=>`<tr>
+      <td style="color:${rankColor(i)};font-weight:600">${i+1}</td>
+      <td class="fw">${a.nome}</td>
+      <td style="color:var(--text-sec)">${a.unidade}</td>
+      <td>R$ ${fmt(a.gasto)}</td>
+      <td>${a.leads}</td>
+      <td>${a.cpl>0?badgeCpl(a.cpl):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div></div>`;
+
+  requestAnimationFrame(() => {
+    const top = [...comLeads].sort((a,b)=>a.cpl-b.cpl).slice(0,12);
+    drawBar('barC', top.map(a=>a.nome), top.map(a=>a.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
+    const topGasto = [...todos].sort((a,b)=>b.gasto-a.gasto).slice(0,10);
+    drawDonut(topGasto.map(a=>a.nome), topGasto.map(a=>a.gasto), v=>` R$ ${v.toFixed(0)}`, v=>'R$'+Math.round(v));
   });
 }
 
@@ -649,21 +781,92 @@ function statusBadge(d) {
   return `<span class="badge bg-r">● Atenção</span>`;
 }
 
+const sum = (arr, k) => arr.reduce((s,d) => s + (d[k] || 0), 0);
+const pct = (v, max) => max > 0 ? Math.round((v / max) * 100) : 0;
+const rankColor = i => i===0 ? 'var(--orange)' : i===1 ? '#aaa' : i===2 ? '#885522' : 'var(--text-dim)';
+
+function kpiCard(icon, label, val, subCls, subTxt) {
+  return `<div class="kpi"><span class="kpi-icon">${icon}</span><div class="kpi-label">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub ${subCls}">${subTxt}</div></div>`;
+}
+
+function vazioInline(msg) {
+  return `<div style="font-size:12px;color:var(--text-dim);padding:12px 0">${msg}</div>`;
+}
+
+// linha padrão com um gráfico de barras (esq.) e um donut (dir.)
+function chartsRow(barTitle, barChip, donutTitle) {
+  return `<div class="charts-row">
+    <div class="card"><div class="card-hd"><div class="card-title">${barTitle}</div>${barChip?`<div class="chip">${barChip}</div>`:''}</div><div style="position:relative;height:240px"><canvas id="barC"></canvas></div></div>
+    <div class="card"><div class="card-hd"><div class="card-title">${donutTitle}</div></div><div class="donut-wrap"><canvas id="donutC" width="150" height="150"></canvas><div class="donut-legend" id="donutLeg"></div></div></div>
+  </div>`;
+}
+
+// cor de barra por faixa de CPL (verde/âmbar/vermelho)
+function cplBarColor(v) {
+  if (v === 0) return { bg:'rgba(255,255,255,0.05)', bd:'rgba(255,255,255,0.1)' };
+  if (v <= 13) return { bg:'rgba(62,207,142,0.6)', bd:'#3ECF8E' };
+  if (v <= 17) return { bg:'rgba(245,166,35,0.6)', bd:'#F5A623' };
+  return { bg:'rgba(240,96,96,0.6)', bd:'#F06060' };
+}
+function orangeBar() { return { bg:'rgba(255,107,0,0.55)', bd:'#FF6B00' }; }
+
+function drawBar(canvasId, labels, data, colorFn, tipFmt, yFmt) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+  if (barChart) barChart.destroy();
+  const cores = data.map(colorFn);
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: cores.map(c=>c.bg), borderColor: cores.map(c=>c.bd), borderWidth: 1, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display:false }, tooltip: { callbacks: { label: c => tipFmt(c.raw) } } },
+      scales: {
+        x: { ticks: { color:'#555', font:{size:10}, maxRotation:45 }, grid: { color:'rgba(255,255,255,0.03)' } },
+        y: { ticks: { color:'#555', font:{size:10}, callback: yFmt }, grid: { color:'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+}
+
+function drawDonut(labels, data, tipFmt, legFmt) {
+  const ctx = document.getElementById('donutC')?.getContext('2d');
+  if (!ctx) return;
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: CORES.slice(0, data.length), borderWidth: 0, hoverOffset: 4 }] },
+    options: { cutout:'68%', plugins: { legend:{display:false}, tooltip: { callbacks: { label: c => tipFmt(c.raw) } } } }
+  });
+  const leg = document.getElementById('donutLeg');
+  if (leg) leg.innerHTML = labels.slice(0,8).map((n,i)=>`<div class="leg-item"><div class="leg-left"><div class="leg-dot" style="background:${CORES[i]}"></div><div class="leg-name">${n}</div></div><div class="leg-val">${legFmt(data[i])}</div></div>`).join('') + (labels.length>8?`<div style="font-size:10px;color:var(--text-dim);margin-top:4px">+${labels.length-8} itens</div>`:'');
+}
+
 // ─────────────────────────────────────────────
 // NAV / PERÍODO
 // ─────────────────────────────────────────────
+function pageTitleFor(view) {
+  return {
+    'Performance': 'PERFORMANCE GERAL',
+    'Leads': 'GERAÇÃO DE LEADS',
+    'Branding IG': 'BRANDING INSTAGRAM',
+    'Conjuntos': 'CONJUNTOS DE ANÚNCIOS',
+  }[view] || view.toUpperCase();
+}
+
 function setNav(el, title) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('pageTitle').textContent = title.toUpperCase();
-  render();
+  VIEW = title;
+  document.getElementById('pageTitle').textContent = pageTitleFor(title);
+  render();   // troca de aba é instantânea — reaproveita os dados já carregados
 }
 
 function setPeriod(p, el) {
   document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   PERIOD = p === '15d' ? 'last_15d' : p === '30d' ? 'last_30d' : 'mes';
-  fetchAll();
+  fetchAll();   // usa o cache do período se já tiver sido carregado
 }
 
 // ─────────────────────────────────────────────
@@ -679,18 +882,22 @@ async function conectar() {
 
   TOKEN = token;
   DEMO = false;
+  clearCache();
   document.getElementById('tokenModal').style.display = 'none';
   document.getElementById('dot').classList.add('live');
   document.getElementById('connLabel').textContent = 'Conectado';
-  await fetchAll();
+  await fetchAll(true);
 }
 
 function demoMode() {
   DEMO = true;
+  clearCache();
   document.getElementById('tokenModal').style.display = 'none';
   document.getElementById('connLabel').textContent = 'Demo mode';
   fetchAll();
 }
+
+function clearCache() { for (const k in cache) delete cache[k]; }
 
 // ─────────────────────────────────────────────
 // INIT
