@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Panobianco — Meta Ads Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -246,25 +246,41 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
 /* 5th stagger child */
 .stagger > *:nth-child(5) { animation-delay: 0.20s; }
 
-/* Hamburger */
-.hamburger {
-  display: none; flex-shrink: 0;
-  flex-direction: column; justify-content: center; align-items: center; gap: 5px;
-  width: 38px; height: 38px;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: var(--r-sm); cursor: pointer;
+/* ── BOTTOM NAV (mobile) ── */
+.bottom-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(17,17,17,0.96);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 200;
 }
-.hamburger span { display: block; width: 18px; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.2s; }
+.bnav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 10px 4px 8px; gap: 3px; min-height: 56px;
+  cursor: pointer; color: var(--text-dim);
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.bnav-item.active { color: var(--orange); }
+.bnav-item.active .bnav-icon { transform: scale(1.15); }
+.bnav-icon { font-size: 20px; line-height: 1; transition: transform 0.15s; }
+.bnav-label { font-size: 10px; font-weight: 500; letter-spacing: 0.2px; }
 
-/* Sidebar overlay e botão fechar */
+/* Sidebar overlay e botão fechar (tablet) */
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 99; }
 .sidebar-overlay.show { display: block; }
 .sidebar-close {
   display: none; background: transparent; border: 1px solid var(--border);
   border-radius: var(--r-sm); color: var(--text-sec); font-size: 14px; line-height: 1;
-  width: 26px; height: 26px; cursor: pointer; align-items: center; justify-content: center;
+  width: 32px; height: 32px; cursor: pointer; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+/* topbar-left apenas para mobile */
+.topbar-left { display: contents; }
 
 /* ── TABLET (≤1100px) ── */
 @media (max-width: 1100px) {
@@ -276,49 +292,88 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
 
 /* ── MOBILE (≤768px) ── */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
-  .sidebar.open { transform: translateX(0); }
-  .sidebar-close { display: flex; }
+  /* Sidebar: escondida no mobile — navegação é a bottom nav */
+  .sidebar { display: none; }
+  .sidebar-overlay { display: none !important; }
+  .hamburger { display: none !important; }
+
+  /* Bottom nav visível */
+  .bottom-nav { display: flex; }
+
+  /* Main: tela cheia, padding no fundo para não ficar atrás da bottom nav */
   .main { margin-left: 0; }
+  .content {
+    padding: 12px;
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
 
-  .topbar { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
-  .topbar-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-  .page-title { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .topbar-right { width: 100%; gap: 6px; }
-  .hamburger { display: flex; }
-  .btn-ghost { display: none; }
-  .period-tabs { flex: 1; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .ptab { padding: 5px 10px; font-size: 11px; }
-  .filter-box { flex: 1; min-width: 0; max-width: 160px; }
-  select { max-width: 100%; font-size: 12px; }
-  #btnRefresh { padding: 7px 12px; font-size: 12px; }
+  /* Topbar */
+  .topbar {
+    padding: 10px 14px;
+    padding-top: max(10px, calc(env(safe-area-inset-top) + 4px));
+    flex-wrap: wrap; gap: 6px; align-items: center;
+  }
+  .topbar-left {
+    display: flex; align-items: center; gap: 8px;
+    flex: 1; min-width: 0; contents: unset;
+  }
+  .page-title { font-size: 14px; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+  .topbar-right { width: 100%; gap: 6px; flex-wrap: nowrap; align-items: center; }
+  .btn-ghost { display: none; }           /* Token: na bottom nav */
+  .period-tabs { flex: 1; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .period-tabs::-webkit-scrollbar { display: none; }
+  .ptab { padding: 7px 12px; font-size: 12px; white-space: nowrap; min-height: 36px; }
+  .filter-box { flex: 1; min-width: 0; max-width: 150px; }
+  /* font-size 16px evita zoom automático do Safari iOS */
+  select { font-size: 16px !important; max-width: 100%; }
+  #btnRefresh { min-height: 36px; padding: 0 12px; font-size: 12px; flex-shrink: 0; }
 
-  .content { padding: 12px; }
-
+  /* KPI cards: 2 colunas no mobile */
   .kpi-grid { grid-template-columns: repeat(2,1fr) !important; }
   .kpi-grid-5 { grid-template-columns: repeat(2,1fr); }
-  .kpi { padding: 14px; }
-  .kpi-val { font-size: 26px; }
+  .kpi { padding: 14px 12px; }
+  .kpi-val { font-size: 24px; }
+  .kpi-val span { font-size: 13px; }
+  .kpi-label { font-size: 9px; letter-spacing: 1px; }
   .kpi-icon { font-size: 15px; margin-bottom: 8px; }
+  .kpi-sub { font-size: 10px; }
 
+  /* Cards e gráficos */
   .charts-row { gap: 10px; }
-  .card { padding: 14px; }
+  .card { padding: 14px 12px; }
   .card-hd { margin-bottom: 12px; }
+  .card-title { font-size: 9px; }
 
+  /* Tabelas: scroll horizontal, tamanho compacto */
   table { font-size: 12px; }
-  td { padding: 9px 8px 9px 0; }
-  th { padding: 0 8px 8px 0; }
-  .bar-track { width: 50px; }
+  td { padding: 8px 8px 8px 0; }
+  th { padding: 0 8px 8px 0; font-size: 9px; }
+  .bar-track { width: 40px; }
+  .badge { font-size: 10px; padding: 2px 7px; }
   .bottom-grid { grid-template-columns: 1fr; }
+
+  /* Legenda do donut: mais compacta */
+  .leg-name { font-size: 10px; }
+  .leg-val { font-size: 10px; }
+
+  /* Alert */
+  .alert { font-size: 11px; padding: 8px 12px; }
 }
 
-/* ── MOBILE PEQUENO (≤480px) ── */
-@media (max-width: 480px) {
+/* ── MOBILE PEQUENO ≤430px (iPhone SE, iPhone 8, modelos menores) ── */
+@media (max-width: 430px) {
+  .kpi-grid { grid-template-columns: repeat(2,1fr) !important; }
+  .kpi-grid-5 { grid-template-columns: repeat(2,1fr); }
+  .topbar { padding-left: 12px; padding-right: 12px; }
+  .content { padding: 10px; padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  .ptab { padding: 6px 9px; font-size: 11px; }
+  .kpi-val { font-size: 22px; }
+}
+
+/* ── MUITO PEQUENO ≤360px ── */
+@media (max-width: 360px) {
   .kpi-grid { grid-template-columns: 1fr !important; }
   .kpi-grid-5 { grid-template-columns: 1fr; }
-  .topbar-right { flex-wrap: wrap; }
-  .period-tabs { width: 100%; }
-  .filter-box { max-width: none; flex: 1; }
 }
 </style>
 </head>
@@ -387,9 +442,6 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
 <main class="main">
   <div class="topbar">
     <div class="topbar-left">
-      <button class="hamburger" id="hamburger" onclick="toggleSidebar()">
-        <span></span><span></span><span></span>
-      </button>
       <div class="page-title" id="pageTitle">PERFORMANCE GERAL</div>
     </div>
     <div class="topbar-right">
@@ -989,21 +1041,32 @@ function pageTitleFor(view) {
 function toggleSidebar() {
   const s = document.getElementById('sidebar');
   const o = document.getElementById('sidebarOverlay');
-  const open = s.classList.toggle('open');
-  o.classList.toggle('show', open);
+  if (s && o) { const open = s.classList.toggle('open'); o.classList.toggle('show', open); }
 }
 
-function setNav(el, title) {
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  el.classList.add('active');
+// Sincroniza sidebar + bottom nav com a aba ativa
+function syncNavState(title) {
+  document.querySelectorAll('.nav-item').forEach(n => {
+    const attr = n.getAttribute('onclick') || '';
+    n.classList.toggle('active', attr.includes(`'${title}'`));
+  });
+  document.querySelectorAll('.bnav-item[data-view]').forEach(n => {
+    n.classList.toggle('active', n.dataset.view === title);
+  });
   VIEW = title;
   document.getElementById('pageTitle').textContent = pageTitleFor(title);
-  // Fecha sidebar no mobile após navegar
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebarOverlay').classList.remove('show');
-  }
-  render();   // troca de aba é instantânea — reaproveita os dados já carregados
+}
+
+// Chamado pela sidebar (desktop)
+function setNav(el, title) {
+  syncNavState(title);
+  render();
+}
+
+// Chamado pela bottom nav (mobile)
+function setNavBottom(el, title) {
+  syncNavState(title);
+  render();
 }
 
 function setPeriod(p, el) {
@@ -1058,5 +1121,29 @@ window.addEventListener('load', () => {
   }, 1800);
 });
 </script>
+
+<!-- BOTTOM NAV — mobile only -->
+<nav class="bottom-nav" id="bottomNav">
+  <div class="bnav-item active" data-view="Performance" onclick="setNavBottom(this,'Performance')">
+    <span class="bnav-icon">◈</span>
+    <span class="bnav-label">Performance</span>
+  </div>
+  <div class="bnav-item" data-view="Leads" onclick="setNavBottom(this,'Leads')">
+    <span class="bnav-icon">◎</span>
+    <span class="bnav-label">Leads</span>
+  </div>
+  <div class="bnav-item" data-view="Branding IG" onclick="setNavBottom(this,'Branding IG')">
+    <span class="bnav-icon">◇</span>
+    <span class="bnav-label">Branding</span>
+  </div>
+  <div class="bnav-item" data-view="Conjuntos" onclick="setNavBottom(this,'Conjuntos')">
+    <span class="bnav-icon">≡</span>
+    <span class="bnav-label">Conjuntos</span>
+  </div>
+  <div class="bnav-item" onclick="document.getElementById('tokenModal').style.display='flex'">
+    <span class="bnav-icon">⚙</span>
+    <span class="bnav-label">Token</span>
+  </div>
+</nav>
 </body>
 </html>
