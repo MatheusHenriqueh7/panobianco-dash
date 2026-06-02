@@ -240,10 +240,85 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
 .stagger > *:nth-child(3) { animation-delay: 0.12s; }
 .stagger > *:nth-child(4) { animation-delay: 0.16s; }
 
+/* KPI 5 colunas */
+.kpi-grid-5 { grid-template-columns: repeat(5,1fr); }
+
+/* 5th stagger child */
+.stagger > *:nth-child(5) { animation-delay: 0.20s; }
+
+/* Hamburger */
+.hamburger {
+  display: none; flex-shrink: 0;
+  flex-direction: column; justify-content: center; align-items: center; gap: 5px;
+  width: 38px; height: 38px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); cursor: pointer;
+}
+.hamburger span { display: block; width: 18px; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.2s; }
+
+/* Sidebar overlay e botão fechar */
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 99; }
+.sidebar-overlay.show { display: block; }
+.sidebar-close {
+  display: none; background: transparent; border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text-sec); font-size: 14px; line-height: 1;
+  width: 26px; height: 26px; cursor: pointer; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── TABLET (≤1100px) ── */
 @media (max-width: 1100px) {
   .kpi-grid { grid-template-columns: repeat(2,1fr); }
+  .kpi-grid-5 { grid-template-columns: repeat(3,1fr); }
   .charts-row { grid-template-columns: 1fr; }
   .bottom-grid { grid-template-columns: 1fr; }
+}
+
+/* ── MOBILE (≤768px) ── */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-close { display: flex; }
+  .main { margin-left: 0; }
+
+  .topbar { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .page-title { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-right { width: 100%; gap: 6px; }
+  .hamburger { display: flex; }
+  .btn-ghost { display: none; }
+  .period-tabs { flex: 1; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ptab { padding: 5px 10px; font-size: 11px; }
+  .filter-box { flex: 1; min-width: 0; max-width: 160px; }
+  select { max-width: 100%; font-size: 12px; }
+  #btnRefresh { padding: 7px 12px; font-size: 12px; }
+
+  .content { padding: 12px; }
+
+  .kpi-grid { grid-template-columns: repeat(2,1fr) !important; }
+  .kpi-grid-5 { grid-template-columns: repeat(2,1fr); }
+  .kpi { padding: 14px; }
+  .kpi-val { font-size: 26px; }
+  .kpi-icon { font-size: 15px; margin-bottom: 8px; }
+
+  .charts-row { gap: 10px; }
+  .card { padding: 14px; }
+  .card-hd { margin-bottom: 12px; }
+
+  table { font-size: 12px; }
+  td { padding: 9px 8px 9px 0; }
+  th { padding: 0 8px 8px 0; }
+  .bar-track { width: 50px; }
+  .bottom-grid { grid-template-columns: 1fr; }
+}
+
+/* ── MOBILE PEQUENO (≤480px) ── */
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr !important; }
+  .kpi-grid-5 { grid-template-columns: 1fr; }
+  .topbar-right { flex-wrap: wrap; }
+  .period-tabs { width: 100%; }
+  .filter-box { max-width: none; flex: 1; }
 }
 </style>
 </head>
@@ -269,10 +344,15 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
 </div>
 
 <!-- SIDEBAR -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="logo">
-    <div class="logo-mark">PANOBIANCO</div>
-    <div class="logo-sub">Meta Ads · Dashboard</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div>
+        <div class="logo-mark">PANOBIANCO</div>
+        <div class="logo-sub">Meta Ads · Dashboard</div>
+      </div>
+      <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+    </div>
   </div>
   <nav class="nav">
     <div class="nav-label">Visão Geral</div>
@@ -301,11 +381,17 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
     <div class="last-sync" id="lastSync"></div>
   </div>
 </aside>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
 <!-- MAIN -->
 <main class="main">
   <div class="topbar">
-    <div class="page-title" id="pageTitle">PERFORMANCE GERAL</div>
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="page-title" id="pageTitle">PERFORMANCE GERAL</div>
+    </div>
     <div class="topbar-right">
       <div class="period-tabs">
         <button class="ptab active" onclick="setPeriod('15d',this)">15 dias</button>
@@ -685,7 +771,7 @@ function renderLeads(el, dados) {
   const melhor = comLeads.length ? comLeads.reduce((a,b)=>a.cpl<=b.cpl?a:b) : null;
   const acima = dados.filter(d=>d.cpl>13).length;
 
-  el.innerHTML += `<div class="kpi-grid stagger" style="grid-template-columns:repeat(5,1fr)">
+  el.innerHTML += `<div class="kpi-grid kpi-grid-5 stagger">
     ${kpiCard('💰','Gasto em leads',`<span>R$</span> ${fmt(tGL)}`,'neutral',`de R$ ${fmt(tG)} total`)}
     ${kpiCard('🎯','Leads gerados', tL.toLocaleString('pt-BR'),'neutral',`via formulários · ${dados.length} unidades`)}
     ${kpiCard('📉','CPL médio',`<span>R$</span> ${cplM.toFixed(2)}`, cplM<=13?'up':'down', cplM<=13?'▲ Dentro da meta R$13':'▼ Acima da meta R$13')}
@@ -724,7 +810,7 @@ function renderBranding(el, dados) {
   const ctrM = tI>0 ? (tC/tI)*100 : 0;
   const maxGB = Math.max(1, ...dados.map(d => Math.max(0, d.gasto - d.gastoLeads)));
 
-  el.innerHTML += `<div class="kpi-grid stagger" style="grid-template-columns:repeat(5,1fr)">
+  el.innerHTML += `<div class="kpi-grid kpi-grid-5 stagger">
     ${kpiCard('📊','Gasto em branding',`<span>R$</span> ${fmt(tGB)}`,'neutral',`de R$ ${fmt(tG)} total`)}
     ${kpiCard('📱','Visitas no perfil IG', tV.toLocaleString('pt-BR'),'neutral',`em ${dados.length} unidades`)}
     ${kpiCard('💸','Custo por visita',`<span>R$</span> ${cpvM.toFixed(2)}`,'neutral','gasto branding ÷ visitas')}
@@ -900,11 +986,23 @@ function pageTitleFor(view) {
   }[view] || view.toUpperCase();
 }
 
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  const o = document.getElementById('sidebarOverlay');
+  const open = s.classList.toggle('open');
+  o.classList.toggle('show', open);
+}
+
 function setNav(el, title) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
   VIEW = title;
   document.getElementById('pageTitle').textContent = pageTitleFor(title);
+  // Fecha sidebar no mobile após navegar
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('show');
+  }
   render();   // troca de aba é instantânea — reaproveita os dados já carregados
 }
 
