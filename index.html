@@ -432,7 +432,7 @@ async function fetchUnidade(u, since, until) {
   const vazio = { id: u.id, nome: u.nome, gasto:0, gastoLeads:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
   try {
     const timeRange = JSON.stringify({ since, until });
-    const fields = "spend,actions,impressions,clicks";
+    const fields = "spend,actions,impressions,clicks,profile_visits";
     const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=campaign`;
 
     const [res, adsets] = await Promise.all([
@@ -446,26 +446,17 @@ async function fetchUnidade(u, since, until) {
     for (const c of campanhas) {
       const g = parseFloat(c.spend || 0);
       const l = extrairAcao(c.actions, ['lead']);
-      const v = extrairAcao(c.actions, ['instagram_profile_visit']);
+      // Considera campanha de leads se tiver 'lead' OU 'onsite_conversion.lead_grouped'
+      // (não soma os dois para evitar double-count — usa só 'lead' para o número de leads)
+      const isLeadCamp = l > 0 || extrairAcao(c.actions, ['onsite_conversion.lead_grouped']) > 0;
+      // Visitas ao perfil IG chegam como campo direto 'profile_visits', não dentro de actions
+      const v = parseInt(c.profile_visits || 0);
       gasto += g;
       leads += l;
       visitas += v;
       impressoes += parseInt(c.impressions || 0);
       cliques += parseInt(c.clicks || 0);
-      // Só conta no gastoLeads campanhas que geraram ao menos 1 lead
-      if (l > 0) gastoLeads += g;
-    }
-
-    // LOG DE DIAGNÓSTICO — visível no console do navegador (F12) apenas para Campo Limpo
-    // Remove este bloco depois de identificar o action_type correto para visitas IG
-    if (u.id === '1719214925258407') {
-      console.group('[DEBUG Campo Limpo] action_types por campanha');
-      campanhas.forEach((c, i) => {
-        const tipos = (c.actions || []).map(a => `${a.action_type}: ${a.value}`).join(' | ');
-        console.log(`Campanha ${i + 1} [R$${parseFloat(c.spend || 0).toFixed(2)}]: ${tipos || '(sem actions)'}`);
-      });
-      console.log(`Totais → gasto: ${gasto.toFixed(2)} | leads: ${leads} | visitas(ig_profile_visit): ${visitas} | impressoes: ${impressoes} | cliques: ${cliques}`);
-      console.groupEnd();
+      if (isLeadCamp) gastoLeads += g;
     }
     const cpl = leads > 0 ? gastoLeads / leads : 0;
     const cpv = visitas > 0 ? gasto / visitas : 0;
