@@ -19,7 +19,7 @@
   --border: rgba(255,255,255,0.06);
   --text: #EFEFEF;
   --text-sec: #888;
-  --text-dim: #444;
+  --text-dim: #999;
   --green: #3ECF8E;
   --amber: #F5A623;
   --red: #F06060;
@@ -395,8 +395,8 @@ function getSinceUntil() {
   const today = new Date();
   const fmt = d => d.toISOString().split('T')[0];
   let since;
-  if (PERIOD === "last_15d") { since = new Date(today); since.setDate(today.getDate() - 15); }
-  else if (PERIOD === "last_30d") { since = new Date(today); since.setDate(today.getDate() - 30); }
+  if (PERIOD === "last_15d") { since = new Date(today); since.setDate(today.getDate() - 14); }
+  else if (PERIOD === "last_30d") { since = new Date(today); since.setDate(today.getDate() - 29); }
   else if (PERIOD === "mes") { since = new Date(today.getFullYear(), today.getMonth(), 1); }
   else { since = new Date(today); since.setDate(today.getDate() - 15); } // fallback seguro
   return { since: fmt(since), until: fmt(today) };
@@ -441,8 +441,8 @@ async function fetchUnidade(u, since, until) {
 
     const ins = res.data?.[0] || null;
     const gasto = ins ? parseFloat(ins.spend || 0) : 0;
-    const leads = ins ? extrairAcao(ins.actions, ['lead','onsite_conversion.lead_grouped','onsite_conversion.messaging_conversation_started_7d']) : 0;
-    const visitas = ins ? extrairAcao(ins.actions, ['instagram_profile_visit','page_engagement','post_engagement']) : 0;
+    const leads = ins ? extrairAcao(ins.actions, ['lead']) : 0;
+    const visitas = ins ? extrairAcao(ins.actions, ['instagram_profile_visit']) : 0;
     const impressoes = ins ? parseInt(ins.impressions || 0) : 0;
     const cliques = ins ? parseInt(ins.clicks || 0) : 0;
     const cpl = leads > 0 ? gasto / leads : 0;
@@ -470,12 +470,12 @@ async function fetchUnidade(u, since, until) {
 async function fetchAdsets(accId, since, until) {
   try {
     const timeRange = JSON.stringify({ since, until });
-    const endpoint = `act_${accId}/adsets?fields=name,insights.time_range(${encodeURIComponent(timeRange)}){spend,actions}&limit=50`;
+    const endpoint = `act_${accId}/adsets?fields=name,insights.time_range(${encodeURIComponent(timeRange)}){spend,actions}&limit=100`;
     const res = await apiCall(endpoint);
     return (res.data || []).map(a => {
       const ins = a.insights?.data?.[0];
       const g = ins ? parseFloat(ins.spend || 0) : 0;
-      const l = ins ? extrairAcao(ins.actions, ['lead','onsite_conversion.lead_grouped']) : 0;
+      const l = ins ? extrairAcao(ins.actions, ['lead']) : 0;
       return { nome: a.name, gasto: +g.toFixed(2), leads: l, cpl: l > 0 ? +(g / l).toFixed(2) : 0 };
     }).filter(a => a.gasto > 0 || a.leads > 0);
   } catch { return []; }
@@ -822,8 +822,8 @@ function drawBar(canvasId, labels, data, colorFn, tipFmt, yFmt) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display:false }, tooltip: { callbacks: { label: c => tipFmt(c.raw) } } },
       scales: {
-        x: { ticks: { color:'#555', font:{size:10}, maxRotation:45 }, grid: { color:'rgba(255,255,255,0.03)' } },
-        y: { ticks: { color:'#555', font:{size:10}, callback: yFmt }, grid: { color:'rgba(255,255,255,0.05)' } }
+        x: { ticks: { color:'#888', font:{size:10}, maxRotation:45 }, grid: { color:'rgba(255,255,255,0.03)' } },
+        y: { ticks: { color:'#888', font:{size:10}, callback: yFmt }, grid: { color:'rgba(255,255,255,0.05)' } }
       }
     }
   });
