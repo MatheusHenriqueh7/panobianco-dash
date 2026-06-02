@@ -432,7 +432,7 @@ async function fetchUnidade(u, since, until) {
   const vazio = { id: u.id, nome: u.nome, gasto:0, gastoLeads:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
   try {
     const timeRange = JSON.stringify({ since, until });
-    const fields = "spend,actions,impressions,clicks";
+    const fields = "spend,actions,cost_per_action_type,impressions,clicks";
     const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=campaign`;
 
     const [res, adsets] = await Promise.all([
@@ -449,11 +449,20 @@ async function fetchUnidade(u, since, until) {
       // Considera campanha de leads se tiver 'lead' OU 'onsite_conversion.lead_grouped'
       // (não soma os dois para evitar double-count — usa só 'lead' para o número de leads)
       const isLeadCamp = l > 0 || extrairAcao(c.actions, ['onsite_conversion.lead_grouped']) > 0;
-      // Visitas ao perfil IG = link_click nas campanhas de tráfego/branding:
-      // o CTA de todas as campanhas de branding aponta para o perfil IG, então
-      // cada link_click é uma visita ao perfil. Campanhas de lead têm CTA para
-      // formulário, não para o IG, então não contam como visita.
-      const v = isLeadCamp ? 0 : extrairAcao(c.actions, ['link_click']);
+      // Visitas ao perfil IG via cost_per_action_type:
+      // A Meta retorna o custo por visita mesmo quando não retorna a contagem direta.
+      // visitas = gasto ÷ custo_por_visita  →  resultado idêntico ao Ads Manager.
+      // Só aplicamos em campanhas de branding (sem leads) cujo CTA aponta para o IG.
+      let v = 0;
+      if (!isLeadCamp && g > 0) {
+        const cpvCamp = extrairCusto(c.cost_per_action_type, 'instagram_profile_visit');
+        v = cpvCamp > 0 ? Math.round(g / cpvCamp) : 0;
+        // DEBUG temporário — abra F12 > Console para confirmar o número (remover após validação)
+        if (u.id === '1719214925258407') {
+          console.log(`[CAMPO LIMPO] Campanha gasto=${g.toFixed(2)} | cpv_api=${cpvCamp} | visitas_calc=${v}`);
+          console.log('  cost_per_action_type completo:', JSON.stringify(c.cost_per_action_type));
+        }
+      }
       gasto += g;
       leads += l;
       visitas += v;
@@ -510,6 +519,13 @@ function melhorAdset(adsets) {
 function extrairAcao(actions, tipos) {
   if (!actions) return 0;
   return actions.filter(a => tipos.includes(a.action_type)).reduce((s,a) => s + parseInt(a.value || 0), 0);
+}
+
+// Retorna o custo por ação de um tipo específico dentro do array cost_per_action_type
+function extrairCusto(arr, tipo) {
+  if (!arr) return 0;
+  const e = arr.find(a => a.action_type === tipo);
+  return e ? parseFloat(e.value || 0) : 0;
 }
 
 // Concorrência limitada: roda no máximo `limit` promessas ao mesmo tempo.
