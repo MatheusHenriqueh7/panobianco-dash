@@ -432,7 +432,7 @@ async function fetchUnidade(u, since, until) {
   const vazio = { id: u.id, nome: u.nome, gasto:0, gastoLeads:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
   try {
     const timeRange = JSON.stringify({ since, until });
-    const fields = "spend,actions,impressions,clicks,profile_visits";
+    const fields = "spend,actions,impressions,clicks";
     const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=campaign`;
 
     const [res, adsets] = await Promise.all([
@@ -449,8 +449,8 @@ async function fetchUnidade(u, since, until) {
       // Considera campanha de leads se tiver 'lead' OU 'onsite_conversion.lead_grouped'
       // (não soma os dois para evitar double-count — usa só 'lead' para o número de leads)
       const isLeadCamp = l > 0 || extrairAcao(c.actions, ['onsite_conversion.lead_grouped']) > 0;
-      // Visitas ao perfil IG chegam como campo direto 'profile_visits', não dentro de actions
-      const v = parseInt(c.profile_visits || 0);
+      // Visitas ao perfil IG: tenta instagram_profile_visit em actions (pode ser 0 se a campanha não rastrear)
+      const v = extrairAcao(c.actions, ['instagram_profile_visit']);
       gasto += g;
       leads += l;
       visitas += v;
