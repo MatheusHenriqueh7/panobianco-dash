@@ -449,8 +449,11 @@ async function fetchUnidade(u, since, until) {
       // Considera campanha de leads se tiver 'lead' OU 'onsite_conversion.lead_grouped'
       // (não soma os dois para evitar double-count — usa só 'lead' para o número de leads)
       const isLeadCamp = l > 0 || extrairAcao(c.actions, ['onsite_conversion.lead_grouped']) > 0;
-      // Visitas ao perfil IG: tenta instagram_profile_visit em actions (pode ser 0 se a campanha não rastrear)
-      const v = extrairAcao(c.actions, ['instagram_profile_visit']);
+      // Visitas ao perfil IG = link_click nas campanhas de tráfego/branding:
+      // o CTA de todas as campanhas de branding aponta para o perfil IG, então
+      // cada link_click é uma visita ao perfil. Campanhas de lead têm CTA para
+      // formulário, não para o IG, então não contam como visita.
+      const v = isLeadCamp ? 0 : extrairAcao(c.actions, ['link_click']);
       gasto += g;
       leads += l;
       visitas += v;
