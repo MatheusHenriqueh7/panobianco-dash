@@ -427,25 +427,35 @@ async function fetchAll(force = false) {
 }
 
 // Carrega insights + conjuntos de UMA unidade (as duas chamadas em paralelo).
+// Busca em nível de CAMPANHA para separar gasto de leads do gasto de branding.
 async function fetchUnidade(u, since, until) {
-  const vazio = { id: u.id, nome: u.nome, gasto:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
+  const vazio = { id: u.id, nome: u.nome, gasto:0, gastoLeads:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
   try {
     const timeRange = JSON.stringify({ since, until });
     const fields = "spend,actions,impressions,clicks";
-    const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=account`;
+    const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=campaign`;
 
     const [res, adsets] = await Promise.all([
       apiCall(endpoint),
       fetchAdsets(u.id, since, until),
     ]);
 
-    const ins = res.data?.[0] || null;
-    const gasto = ins ? parseFloat(ins.spend || 0) : 0;
-    const leads = ins ? extrairAcao(ins.actions, ['lead']) : 0;
-    const visitas = ins ? extrairAcao(ins.actions, ['instagram_profile_visit']) : 0;
-    const impressoes = ins ? parseInt(ins.impressions || 0) : 0;
-    const cliques = ins ? parseInt(ins.clicks || 0) : 0;
-    const cpl = leads > 0 ? gasto / leads : 0;
+    // Agrega por campanha: gasto de leads separado do gasto de branding
+    const campanhas = res.data || [];
+    let gasto = 0, gastoLeads = 0, leads = 0, visitas = 0, impressoes = 0, cliques = 0;
+    for (const c of campanhas) {
+      const g = parseFloat(c.spend || 0);
+      const l = extrairAcao(c.actions, ['lead']);
+      const v = extrairAcao(c.actions, ['instagram_profile_visit']);
+      gasto += g;
+      leads += l;
+      visitas += v;
+      impressoes += parseInt(c.impressions || 0);
+      cliques += parseInt(c.clicks || 0);
+      // Só conta no gastoLeads campanhas que geraram ao menos 1 lead
+      if (l > 0) gastoLeads += g;
+    }
+    const cpl = leads > 0 ? gastoLeads / leads : 0;
     const cpv = visitas > 0 ? gasto / visitas : 0;
     const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
 
@@ -453,7 +463,8 @@ async function fetchUnidade(u, since, until) {
 
     return {
       id: u.id, nome: u.nome,
-      gasto, leads, cpl: +cpl.toFixed(2),
+      gasto: +gasto.toFixed(2), gastoLeads: +gastoLeads.toFixed(2),
+      leads, cpl: +cpl.toFixed(2),
       visitas, cpv: +cpv.toFixed(2),
       impressoes, cliques, ctr: +ctr.toFixed(2),
       adsets,
@@ -523,11 +534,12 @@ function gerarDemo() {
   const nomesAdset = ["Público aberto 25-45","Lookalike 1%","Engajamento IG","Interesse fitness","Remarketing forms","Público local 18-40","Captação WhatsApp","Branding perfil"];
   return UNIDADES.map((u, i) => {
     const gasto = 550 + Math.random() * 270;
+    const gastoLeads = +(gasto * (0.55 + Math.random() * 0.35)).toFixed(2);
     const leads = Math.floor(25 + Math.random() * 55);
     const visitas = Math.floor(600 + Math.random() * 2000);
     const impressoes = Math.floor(15000 + Math.random() * 35000);
     const cliques = Math.floor(impressoes * (0.008 + Math.random() * 0.02));
-    const cpl = gasto / leads;
+    const cpl = gastoLeads / leads;
 
     // 3 a 5 conjuntos fictícios que somam ~o total da unidade
     const nAdsets = 3 + Math.floor(Math.random() * 3);
@@ -543,7 +555,8 @@ function gerarDemo() {
 
     return {
       id: u.id, nome: u.nome,
-      gasto: +gasto.toFixed(2), leads,
+      gasto: +gasto.toFixed(2), gastoLeads,
+      leads,
       cpl: +cpl.toFixed(2), visitas,
       cpv: +(gasto/visitas).toFixed(2),
       impressoes, cliques,
@@ -593,8 +606,8 @@ function render() {
 
 // ── PERFORMANCE: visão geral (investimento + leads + IG) ──
 function renderPerformance(el, dados) {
-  const tG = sum(dados,'gasto'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
-  const cplM = tL > 0 ? tG/tL : 0, cpvM = tV > 0 ? tG/tV : 0;
+  const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
+  const cplM = tL > 0 ? tGL/tL : 0, cpvM = tV > 0 ? tG/tV : 0;
   const maxG = Math.max(...dados.map(d => d.gasto));
 
   el.innerHTML += `<div class="kpi-grid stagger">
@@ -643,8 +656,8 @@ function renderPerformance(el, dados) {
 
 // ── LEADS: foco em geração de leads e CPL ──
 function renderLeads(el, dados) {
-  const tG = sum(dados,'gasto'), tL = sum(dados,'leads'), tI = sum(dados,'impressoes'), tC = sum(dados,'cliques');
-  const cplM = tL>0 ? tG/tL : 0;
+  const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tI = sum(dados,'impressoes'), tC = sum(dados,'cliques');
+  const cplM = tL>0 ? tGL/tL : 0;
   const ctrM = tI>0 ? (tC/tI)*100 : 0;
   const comLeads = dados.filter(d=>d.leads>0 && d.cpl>0);
   const melhor = comLeads.length ? comLeads.reduce((a,b)=>a.cpl<=b.cpl?a:b) : null;
