@@ -375,15 +375,130 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
   .kpi-grid { grid-template-columns: 1fr !important; }
   .kpi-grid-5 { grid-template-columns: 1fr; }
 }
+
+/* ── REFRESH OVERLAY ── */
+.refresh-overlay {
+  position: fixed; inset: 0; background: rgba(8,8,8,0.95);
+  backdrop-filter: blur(14px);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 9990; transition: opacity 0.35s;
+}
+.refresh-overlay.show { display: flex; }
+.refresh-overlay-logo { font-family: var(--font-display); font-size: 48px; letter-spacing: 5px; color: var(--orange); margin-bottom: 6px; }
+.refresh-overlay-sub { font-size: 11px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 32px; }
+.refresh-bar-track { width: 260px; height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+.refresh-bar-fill { height: 3px; background: var(--orange); border-radius: 2px; transition: width 0.3s ease; width: 0%; }
+.refresh-progress-text { font-size: 12px; color: var(--text-sec); text-align: center; }
+
+/* ── LAST UPDATE CHIP ── */
+.last-update-chip {
+  display: none; align-items: center; gap: 5px;
+  font-size: 11px; padding: 5px 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); white-space: nowrap;
+}
+.lud { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.lud.fresh { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.lud.stale { background: var(--amber); }
+.lud.old   { background: var(--red); }
+
+/* ── MODO APRESENTAÇÃO ── */
+body.present-mode .sidebar { display: none !important; }
+body.present-mode .bottom-nav { display: none !important; }
+body.present-mode .main { margin-left: 0; }
+body.present-mode .kpi-val { font-size: 38px; }
+body.present-mode .kpi { padding: 22px 24px; }
+body.present-mode .exec-kpi-val { font-size: 56px; }
+body.present-mode #btnPresent::before { content: '✕ '; }
+
+/* ── CONSOLIDATED BANNER ── */
+.consolidated-banner {
+  background: linear-gradient(135deg, rgba(255,107,0,0.10) 0%, rgba(255,107,0,0.04) 100%);
+  border: 1px solid rgba(255,107,0,0.22);
+  border-radius: var(--r); padding: 20px 24px;
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 0;
+  margin-bottom: 20px; position: relative; overflow: hidden;
+}
+.consolidated-banner::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--orange), transparent);
+}
+.cb-item { text-align: center; padding: 4px 8px; }
+.cb-item + .cb-item { border-left: 1px solid rgba(255,107,0,0.15); }
+.cb-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+.cb-val { font-family: var(--font-display); font-size: 34px; letter-spacing: 1px; color: var(--orange); line-height: 1; }
+.cb-val span { font-size: 14px; color: rgba(255,107,0,0.6); }
+.cb-var { font-size: 10px; margin-top: 4px; min-height: 14px; }
+
+/* ── VARIATION ── */
+.var-up   { color: var(--green); font-weight: 500; }
+.var-down { color: var(--red);   font-weight: 500; }
+.var-neu  { color: var(--text-dim); }
+
+/* ── GOAL BAR ── */
+.goal-track { background: var(--surface3); border-radius: 3px; height: 5px; width: 70px; margin-bottom: 3px; }
+.goal-fill  { height: 5px; border-radius: 3px; transition: width 0.5s ease; }
+.goal-fill.g { background: var(--green); }
+.goal-fill.a { background: var(--amber); }
+.goal-fill.r { background: var(--red); }
+.goal-txt { font-size: 10px; color: var(--text-dim); cursor: pointer; }
+.goal-txt:hover { color: var(--orange); text-decoration: underline dotted; }
+
+/* ── RESUMO EXECUTIVO ── */
+.exec-hero { text-align: center; padding: 36px 0 28px; }
+.exec-title { font-family: var(--font-display); font-size: 48px; letter-spacing: 5px; color: var(--text); }
+.exec-period { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 8px; }
+.exec-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 32px; }
+.exec-kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 28px 20px; text-align: center; transition: border-color 0.2s; }
+.exec-kpi:hover { border-color: var(--orange-border); }
+.exec-kpi-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+.exec-kpi-val { font-family: var(--font-display); font-size: 46px; letter-spacing: 2px; color: var(--orange); line-height: 1; }
+.exec-kpi-val span { font-size: 18px; color: var(--orange-light); }
+.exec-section { margin-bottom: 28px; }
+.exec-section-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.exec-cards-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.exec-card { border-radius: var(--r); padding: 22px 20px; text-align: center; }
+.exec-card.best { background: rgba(62,207,142,0.07); border: 1px solid rgba(62,207,142,0.2); }
+.exec-card.warn { background: rgba(240,96,96,0.07); border: 1px solid rgba(240,96,96,0.2); }
+.exec-card-rank { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.exec-card-name { font-weight: 500; font-size: 14px; margin-bottom: 10px; }
+.exec-card.best .exec-card-name { color: var(--green); }
+.exec-card.warn .exec-card-name { color: var(--red); }
+.exec-card-cpl { font-family: var(--font-display); font-size: 36px; letter-spacing: 1px; line-height: 1; margin-bottom: 6px; }
+.exec-card.best .exec-card-cpl { color: var(--green); }
+.exec-card.warn .exec-card-cpl { color: var(--red); }
+.exec-card-sub { font-size: 11px; color: var(--text-sec); }
+.exec-present-btn { display: block; margin: 0 auto 32px; padding: 12px 36px; font-size: 14px; letter-spacing: 1px; }
+
+@media (max-width: 1100px) {
+  .consolidated-banner { grid-template-columns: repeat(2,1fr); }
+  .exec-kpi-grid { grid-template-columns: repeat(2,1fr); }
+}
+@media (max-width: 768px) {
+  .consolidated-banner { padding: 14px; gap: 0; }
+  .cb-val { font-size: 26px; }
+  .exec-title { font-size: 32px; letter-spacing: 3px; }
+  .exec-kpi-val { font-size: 36px; }
+  .exec-cards-row { grid-template-columns: 1fr; }
+  .last-update-chip { display: none !important; }
+}
 </style>
 </head>
 <body>
 
-<!-- LOADER -->
+<!-- LOADER (inicial) -->
 <div class="loader" id="loader">
   <div class="loader-logo">PANOBIANCO</div>
   <div class="loader-sub">Meta Ads Dashboard</div>
   <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<!-- REFRESH OVERLAY -->
+<div class="refresh-overlay" id="refreshOverlay">
+  <div class="refresh-overlay-logo">PANOBIANCO</div>
+  <div class="refresh-overlay-sub">Atualizando dados</div>
+  <div class="refresh-bar-track"><div class="refresh-bar-fill" id="refreshBarFill"></div></div>
+  <div class="refresh-progress-text" id="refreshProgressText">Iniciando...</div>
 </div>
 
 <!-- TOKEN MODAL -->
@@ -423,6 +538,9 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
     <div class="nav-item" onclick="setNav(this,'Conjuntos')">
       <span class="nav-icon">≡</span> Conjuntos
     </div>
+    <div class="nav-item" onclick="setNav(this,'Resumo Executivo')">
+      <span class="nav-icon">★</span> Resumo Executivo
+    </div>
     <div class="nav-label" style="margin-top:12px">Config</div>
     <div class="nav-item" onclick="document.getElementById('tokenModal').style.display='flex'">
       <span class="nav-icon">⚙</span> Token API
@@ -454,6 +572,11 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
         <span class="filter-label">Unidade</span>
         <select id="unitSel" onchange="render()"></select>
       </div>
+      <div class="last-update-chip" id="lastUpdateChip">
+        <div class="lud" id="lastUpdateDot"></div>
+        <span id="lastUpdateText">—</span>
+      </div>
+      <button class="btn btn-ghost" id="btnPresent" onclick="togglePresentation()">⛶ Apresentar</button>
       <button class="btn btn-ghost" onclick="document.getElementById('tokenModal').style.display='flex'">⚙ Token</button>
       <button class="btn" id="btnRefresh" onclick="fetchAll(true)">↻ Atualizar</button>
     </div>
@@ -510,9 +633,14 @@ let TOKEN = "";
 let DEMO = true;
 let DATA = [];
 let PERIOD = "last_15d";
-let VIEW = "Performance";          // aba ativa: Performance | Leads | Branding IG | Conjuntos
-const cache = {};                  // dados já carregados por período: { last_15d: [...], last_30d: [...] }
+let VIEW = "Performance";
+const cache = {};
 let barChart = null, donutChart = null;
+let presentMode = false;
+let lastUpdateTime = null;
+let prevData = null;
+const prevCache = {};
+const GOALS = JSON.parse(localStorage.getItem('pano_goals') || '{}');
 
 // ─────────────────────────────────────────────
 // API — chama via proxy Vercel
@@ -545,23 +673,100 @@ function getSinceUntil() {
 // ─────────────────────────────────────────────
 async function fetchAll(force = false) {
   if (DEMO) { DATA = gerarDemo(); cache[PERIOD] = DATA; populaFiltro(); render(); return; }
-
-  // Cache por período: voltar para um filtro já carregado é instantâneo.
-  // Use o botão "↻ Atualizar" para forçar uma nova busca.
   if (!force && cache[PERIOD]) { DATA = cache[PERIOD]; populaFiltro(); render(); return; }
 
-  setLoading(true);
+  showRefreshOverlay(0, UNIDADES.length);
   const { since, until } = getSinceUntil();
 
-  // Todas as unidades em paralelo (máx. 5 simultâneas p/ respeitar o rate limit da Meta).
-  DATA = await mapLimit(UNIDADES, 5, u => fetchUnidade(u, since, until));
+  DATA = await mapLimit(UNIDADES, 5, u => fetchUnidade(u, since, until), (done, total) => {
+    showRefreshOverlay(done, total);
+  });
   cache[PERIOD] = DATA;
+  lastUpdateTime = new Date();
 
   document.getElementById('dot').classList.add('live');
   document.getElementById('connLabel').textContent = 'Conectado';
-  document.getElementById('lastSync').textContent = '↺ ' + new Date().toLocaleTimeString('pt-BR');
-  populaFiltro(); render();
-  setLoading(false);
+  document.getElementById('lastSync').textContent = '↺ ' + lastUpdateTime.toLocaleTimeString('pt-BR');
+
+  hideRefreshOverlay();
+  updateLastUpdateChip();
+  populaFiltro();
+  render();
+
+  fetchPrevPeriod();
+}
+
+function showRefreshOverlay(done, total) {
+  const ov = document.getElementById('refreshOverlay');
+  const fill = document.getElementById('refreshBarFill');
+  const txt = document.getElementById('refreshProgressText');
+  if (!ov) return;
+  ov.classList.add('show');
+  if (fill) fill.style.width = (total > 0 ? Math.round((done / total) * 100) : 0) + '%';
+  if (txt) txt.textContent = done === 0 ? 'Iniciando...' : `Buscando dados das unidades... ${done}/${total}`;
+  const btn = document.getElementById('btnRefresh');
+  if (btn) { btn.textContent = '↻ Carregando...'; btn.disabled = true; }
+}
+
+function hideRefreshOverlay() {
+  const ov = document.getElementById('refreshOverlay');
+  if (!ov) return;
+  const fill = document.getElementById('refreshBarFill');
+  if (fill) fill.style.width = '100%';
+  setTimeout(() => {
+    ov.style.opacity = '0';
+    setTimeout(() => { ov.classList.remove('show'); ov.style.opacity = ''; }, 380);
+  }, 280);
+  const btn = document.getElementById('btnRefresh');
+  if (btn) { btn.textContent = '↻ Atualizar'; btn.disabled = false; }
+}
+
+function updateLastUpdateChip() {
+  if (!lastUpdateTime) return;
+  const chip = document.getElementById('lastUpdateChip');
+  const dot  = document.getElementById('lastUpdateDot');
+  const txt  = document.getElementById('lastUpdateText');
+  if (!chip) return;
+  chip.style.display = 'flex';
+  const mins = Math.floor((Date.now() - lastUpdateTime) / 60000);
+  const hhmm = lastUpdateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  txt.textContent = `Atualizado às ${hhmm}`;
+  dot.className = 'lud ' + (mins < 60 ? 'fresh' : mins < 180 ? 'stale' : 'old');
+}
+
+async function fetchPrevPeriod() {
+  if (DEMO) return;
+  const key = PERIOD + '_prev';
+  if (prevCache[key]) { prevData = prevCache[key]; render(); return; }
+  const { since, until } = getPrevSinceUntil();
+  try {
+    prevData = await mapLimit(UNIDADES, 5, u => fetchUnidade(u, since, until));
+    prevCache[key] = prevData;
+    render();
+  } catch (e) { prevData = null; }
+}
+
+function getPrevSinceUntil() {
+  const today = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  let since, until;
+  if (PERIOD === 'last_15d') {
+    until = new Date(today); until.setDate(today.getDate() - 15);
+    since = new Date(until); since.setDate(until.getDate() - 14);
+  } else if (PERIOD === 'last_30d') {
+    until = new Date(today); until.setDate(today.getDate() - 30);
+    since = new Date(until); since.setDate(until.getDate() - 29);
+  } else {
+    since = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    until = new Date(today.getFullYear(), today.getMonth(), 0);
+  }
+  return { since: fmt(since), until: fmt(until) };
+}
+
+function getPrevSum(field) {
+  if (!prevData) return null;
+  const ids = new Set(getDados().map(d => d.id));
+  return prevData.filter(d => ids.has(d.id)).reduce((s, d) => s + (d[field] || 0), 0);
 }
 
 // Carrega insights + conjuntos de UMA unidade (as duas chamadas em paralelo).
@@ -653,26 +858,62 @@ function extrairCusto(arr, tipo) {
   return e ? parseFloat(e.value || 0) : 0;
 }
 
-// Concorrência limitada: roda no máximo `limit` promessas ao mesmo tempo.
-async function mapLimit(items, limit, fn) {
+async function mapLimit(items, limit, fn, onProgress) {
   const results = new Array(items.length);
-  let i = 0;
+  let i = 0, done = 0;
   const worker = async () => {
     while (i < items.length) {
       const idx = i++;
       results[idx] = await fn(items[idx], idx);
+      done++;
+      if (onProgress) onProgress(done, items.length);
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return results;
 }
 
-function setLoading(on) {
-  const btn = document.getElementById('btnRefresh');
-  if (!btn) return;
-  btn.textContent = on ? '↻ Carregando...' : '↻ Atualizar';
-  btn.disabled = on;
+// ─────────────────────────────────────────────
+// GOALS
+// ─────────────────────────────────────────────
+function getGoal(id) { return GOALS[id] || 40; }
+function saveGoal(id, v) { GOALS[id] = parseInt(v) || 40; localStorage.setItem('pano_goals', JSON.stringify(GOALS)); render(); }
+function editGoal(id) {
+  const u = UNIDADES.find(u => u.id === id);
+  const v = prompt(`Meta de leads — ${u ? u.nome : id}:`, getGoal(id));
+  if (v !== null && !isNaN(parseInt(v))) saveGoal(id, v);
 }
+function goalBar(leads, goal) {
+  const p = goal > 0 ? Math.min(100, Math.round((leads / goal) * 100)) : 0;
+  const cls = p >= 80 ? 'g' : p >= 50 ? 'a' : 'r';
+  return `<div class="goal-track"><div class="goal-fill ${cls}" style="width:${p}%"></div></div><div class="goal-txt">${leads}/${goal}</div>`;
+}
+
+// ─────────────────────────────────────────────
+// VARIATION BADGES
+// ─────────────────────────────────────────────
+function varBadge(cur, prev, invertSign) {
+  if (prev === null || prev === 0) return '';
+  const delta = ((cur - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(delta) < 1) return '';
+  const up = delta > 0;
+  const good = invertSign ? !up : up;
+  return `<span class="${good ? 'var-up' : 'var-down'}">${up ? '▲' : '▼'} ${Math.abs(delta).toFixed(0)}%</span>`;
+}
+
+// ─────────────────────────────────────────────
+// PRESENTATION MODE
+// ─────────────────────────────────────────────
+function togglePresentation() {
+  presentMode = !presentMode;
+  document.body.classList.toggle('present-mode', presentMode);
+  const btn = document.getElementById('btnPresent');
+  if (btn) btn.textContent = presentMode ? '✕ Sair' : '⛶ Apresentar';
+}
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'f' || e.key === 'F') togglePresentation();
+});
 
 // ─────────────────────────────────────────────
 // DEMO DATA
@@ -748,6 +989,7 @@ function render() {
   if (VIEW === 'Leads') renderLeads(el, dados);
   else if (VIEW === 'Branding IG') renderBranding(el, dados);
   else if (VIEW === 'Conjuntos') renderConjuntos(el, dados);
+  else if (VIEW === 'Resumo Executivo') renderExecSummary(el, dados);
   else renderPerformance(el, dados);
 }
 
@@ -756,6 +998,16 @@ function renderPerformance(el, dados) {
   const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
   const cplM = tL > 0 ? tGL/tL : 0, cpvM = tV > 0 ? tG/tV : 0;
   const maxG = Math.max(...dados.map(d => d.gasto));
+
+  const pvG = getPrevSum('gasto'), pvGL = getPrevSum('gastoLeads'), pvL = getPrevSum('leads'), pvV = getPrevSum('visitas');
+  const pvCpl = pvL > 0 ? pvGL / pvL : null;
+
+  el.innerHTML += `<div class="consolidated-banner">
+    <div class="cb-item"><div class="cb-label">Total Investido</div><div class="cb-val"><span>R$</span> ${fmt(tG)}</div><div class="cb-var">${varBadge(tG,pvG,false)}</div></div>
+    <div class="cb-item"><div class="cb-label">Total de Leads</div><div class="cb-val">${tL.toLocaleString('pt-BR')}</div><div class="cb-var">${varBadge(tL,pvL,false)}</div></div>
+    <div class="cb-item"><div class="cb-label">CPL Médio Geral</div><div class="cb-val"><span>R$</span> ${cplM.toFixed(2)}</div><div class="cb-var">${varBadge(cplM,pvCpl,true)}</div></div>
+    <div class="cb-item"><div class="cb-label">Visitas Perfil IG</div><div class="cb-val">${tV.toLocaleString('pt-BR')}</div><div class="cb-var">${varBadge(tV,pvV,false)}</div></div>
+  </div>`;
 
   el.innerHTML += `<div class="kpi-grid stagger">
     ${kpiCard('💰','Investimento total',`<span>R$</span> ${fmt(tG)}`,'neutral',`${dados.length} unidades ativas`)}
@@ -768,18 +1020,20 @@ function renderPerformance(el, dados) {
 
   el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Performance por unidade</div><div class="chip">${dados.length} unidades</div></div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Unidade</th><th>Gasto (R$)</th><th>Leads</th><th>CPL (R$)</th><th>CTR (%)</th><th>Visitas IG</th><th>Custo/Visita</th><th>Status</th><th>Invest.</th></tr></thead>
-    <tbody>${dados.map(d=>`<tr>
-      <td class="fw">${d.nome}</td>
-      <td>R$ ${fmt(d.gasto)}</td>
-      <td>${d.leads}</td>
-      <td>${d.cpl>0?badgeCpl(d.cpl):'—'}</td>
-      <td>${d.ctr>0?d.ctr.toFixed(2)+'%':'—'}</td>
-      <td>${d.visitas.toLocaleString('pt-BR')}</td>
-      <td style="color:var(--text-sec)">R$ ${d.cpv.toFixed(2)}</td>
-      <td>${statusBadge(d)}</td>
-      <td><div class="bar-track"><div class="bar-fill" style="width:${pct(d.gasto,maxG)}%"></div></div></td>
-    </tr>`).join('')}</tbody>
+    <thead><tr><th>Unidade</th><th>Gasto (R$)</th><th>Leads</th><th>CPL (R$)</th><th>Visitas IG</th><th>Meta</th><th>Status</th><th>Invest.</th></tr></thead>
+    <tbody>${dados.map(d=>{
+      const goal = getGoal(d.id);
+      return `<tr>
+        <td class="fw">${d.nome}</td>
+        <td>R$ ${fmt(d.gasto)}</td>
+        <td>${d.leads}</td>
+        <td>${d.cpl>0?badgeCpl(d.cpl):'—'}</td>
+        <td>${d.visitas.toLocaleString('pt-BR')}</td>
+        <td onclick="editGoal('${d.id}')" style="cursor:pointer">${goalBar(d.leads, goal)}</td>
+        <td>${statusBadge(d)}</td>
+        <td><div class="bar-track"><div class="bar-fill" style="width:${pct(d.gasto,maxG)}%"></div></div></td>
+      </tr>`;
+    }).join('')}</tbody>
   </table></div></div>`;
 
   el.innerHTML += `<div class="bottom-grid">
@@ -935,6 +1189,60 @@ function renderConjuntos(el, dados) {
   });
 }
 
+// ── RESUMO EXECUTIVO ──
+function renderExecSummary(el, dados) {
+  const { since, until } = getSinceUntil();
+  const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
+  const cplM = tL > 0 ? tGL/tL : 0;
+  const periodLabel = PERIOD === 'last_15d' ? 'Últimos 15 dias' : PERIOD === 'last_30d' ? 'Últimos 30 dias' : 'Mês atual';
+
+  const comLeads = dados.filter(d => d.leads > 0 && d.cpl > 0).sort((a,b) => a.cpl - b.cpl);
+  const top3 = comLeads.slice(0, 3);
+  const atencao = [...dados].sort((a,b) => {
+    if (a.leads === 0 && b.leads > 0) return -1;
+    if (b.leads === 0 && a.leads > 0) return 1;
+    return b.cpl - a.cpl;
+  }).slice(0, 3);
+
+  el.innerHTML += `
+  <div class="exec-hero">
+    <div class="exec-title">RESUMO EXECUTIVO</div>
+    <div class="exec-period">${periodLabel} · ${since} a ${until}</div>
+  </div>
+
+  <button class="btn exec-present-btn" onclick="togglePresentation()">⛶ Modo Apresentação <small style="font-size:10px;opacity:.7">(F)</small></button>
+
+  <div class="exec-kpi-grid stagger">
+    <div class="exec-kpi"><div class="exec-kpi-label">Total Investido</div><div class="exec-kpi-val"><span>R$</span> ${fmt(tG)}</div></div>
+    <div class="exec-kpi"><div class="exec-kpi-label">Total de Leads</div><div class="exec-kpi-val">${tL.toLocaleString('pt-BR')}</div></div>
+    <div class="exec-kpi"><div class="exec-kpi-label">CPL Médio Geral</div><div class="exec-kpi-val"><span>R$</span> ${cplM.toFixed(2)}</div></div>
+    <div class="exec-kpi"><div class="exec-kpi-label">Visitas no Perfil IG</div><div class="exec-kpi-val">${tV.toLocaleString('pt-BR')}</div></div>
+  </div>
+
+  ${top3.length ? `<div class="exec-section">
+    <div class="exec-section-title">🏆 TOP 3 MELHORES — menor CPL</div>
+    <div class="exec-cards-row">
+      ${top3.map((d,i) => `<div class="exec-card best">
+        <div class="exec-card-rank">${['1°','2°','3°'][i]} lugar</div>
+        <div class="exec-card-name">${d.nome}</div>
+        <div class="exec-card-cpl">R$ ${d.cpl.toFixed(2)}</div>
+        <div class="exec-card-sub">${d.leads} leads · R$ ${fmt(d.gasto)}</div>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}
+
+  ${atencao.length ? `<div class="exec-section">
+    <div class="exec-section-title">⚠ ATENÇÃO NECESSÁRIA</div>
+    <div class="exec-cards-row">
+      ${atencao.map(d => `<div class="exec-card warn">
+        <div class="exec-card-name">${d.nome}</div>
+        <div class="exec-card-cpl">${d.leads === 0 ? 'Sem leads' : 'R$ ' + d.cpl.toFixed(2)}</div>
+        <div class="exec-card-sub">${d.leads === 0 ? 'Nenhum lead no período' : `CPL acima da meta · ${d.leads} leads`}</div>
+      </div>`).join('')}
+    </div>
+  </div>` : ''}`;
+}
+
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
@@ -1022,6 +1330,7 @@ function pageTitleFor(view) {
     'Leads': 'GERAÇÃO DE LEADS',
     'Branding IG': 'BRANDING INSTAGRAM',
     'Conjuntos': 'CONJUNTOS DE ANÚNCIOS',
+    'Resumo Executivo': 'RESUMO EXECUTIVO',
   }[view] || view.toUpperCase();
 }
 
@@ -1127,9 +1436,9 @@ window.addEventListener('load', () => {
     <span class="bnav-icon">≡</span>
     <span class="bnav-label">Conjuntos</span>
   </div>
-  <div class="bnav-item" onclick="document.getElementById('tokenModal').style.display='flex'">
-    <span class="bnav-icon">⚙</span>
-    <span class="bnav-label">Token</span>
+  <div class="bnav-item" data-view="Resumo Executivo" onclick="setNavBottom(this,'Resumo Executivo')">
+    <span class="bnav-icon">★</span>
+    <span class="bnav-label">Resumo</span>
   </div>
 </nav>
 </body>
