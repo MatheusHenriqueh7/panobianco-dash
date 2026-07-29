@@ -6,14 +6,30 @@
       "use": "@vercel/node"
     },
     {
+      "src": "api/status.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/rdstation.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api/meta",
       "dest": "/api/meta.js"
+    },
+    {
+      "src": "/api/status",
+      "dest": "/api/status.js"
+    },
+    {
+      "src": "/api/rdstation",
+      "dest": "/api/rdstation.js"
     },
     {
       "src": "/(.*)",

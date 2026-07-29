@@ -138,6 +138,8 @@ select option { background: var(--surface2); }
 .kpi-val { font-family: var(--font-display); font-size: 32px; letter-spacing: 1px; line-height: 1; color: var(--text); margin-bottom: 6px; }
 .kpi-val span { font-size: 16px; color: var(--text-sec); }
 .kpi-sub { font-size: 11px; }
+.kpi-spark { margin-top: 10px; line-height: 0; }
+.kpi-spark .spark { width: 100%; height: 26px; opacity: 0.85; }
 .up { color: var(--green); }
 .down { color: var(--red); }
 .neutral { color: var(--text-sec); }
@@ -181,6 +183,22 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
 .bar-track { background: var(--surface3); border-radius: 3px; height: 4px; width: 80px; }
 .bar-fill { height: 4px; border-radius: 3px; background: var(--orange); transition: width 0.5s ease; }
 
+/* FUNIL DE CONVERSÃO */
+.funnel-card { margin-bottom: 20px; }
+.funnel-row { display: flex; align-items: stretch; gap: 12px; }
+.funnel-step { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 16px; text-align: center; }
+.funnel-icon { font-size: 20px; margin-bottom: 8px; }
+.funnel-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+.funnel-val { font-family: var(--font-display); font-size: 26px; letter-spacing: 1px; color: var(--text); line-height: 1; }
+.funnel-bar { background: var(--surface3); border-radius: 3px; height: 5px; margin: 10px 0 6px; overflow: hidden; }
+.funnel-fill { height: 5px; border-radius: 3px; background: var(--orange); transition: width 0.6s ease; }
+.funnel-sub { font-size: 10px; color: var(--text-sec); min-height: 13px; }
+.funnel-arrow { display: flex; align-items: center; font-size: 20px; color: var(--text-dim); }
+@media (max-width: 768px) {
+  .funnel-row { flex-direction: column; }
+  .funnel-arrow { transform: rotate(90deg); align-self: center; }
+}
+
 /* BOTTOM GRID */
 .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
 .adset-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
@@ -201,30 +219,6 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
 .loader-fill { height: 2px; background: var(--orange); border-radius: 2px; animation: load 1.8s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes load { 0% { width: 0; margin-left: 0; } 50% { width: 100%; margin-left: 0; } 100% { width: 0; margin-left: 100%; } }
-
-/* TOKEN MODAL */
-.modal-wrap { position: fixed; inset: 0; background: rgba(0,0,0,0.88); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal { background: var(--surface); border: 1px solid var(--orange-border); border-radius: var(--r); padding: 32px; width: 460px; max-width: 95vw; }
-.modal-title { font-family: var(--font-display); font-size: 26px; letter-spacing: 1.5px; color: var(--orange); margin-bottom: 6px; }
-.modal-desc { font-size: 13px; color: var(--text-sec); line-height: 1.6; margin-bottom: 22px; }
-.input {
-  width: 100%; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: var(--r-sm); padding: 11px 13px; color: var(--text);
-  font-family: var(--font-body); font-size: 13px; outline: none; margin-bottom: 14px;
-  transition: border-color 0.15s;
-}
-.input:focus { border-color: var(--orange); }
-.input::placeholder { color: var(--text-dim); }
-.modal-link { text-align: center; margin-top: 12px; font-size: 12px; color: var(--text-dim); cursor: pointer; }
-.modal-link:hover { color: var(--text-sec); }
-.modal-link u { text-decoration-color: var(--text-dim); }
-
-/* ERROR BOX */
-.error-box {
-  background: rgba(240,96,96,0.08); border: 1px solid rgba(240,96,96,0.2);
-  border-radius: var(--r-sm); padding: 12px 14px;
-  font-size: 12px; color: var(--red); margin-bottom: 16px; display: none;
-}
 
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -319,7 +313,7 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
   }
   .page-title { font-size: 14px; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
   .topbar-right { width: 100%; gap: 6px; flex-wrap: nowrap; align-items: center; }
-  .btn-ghost { display: none; }           /* Token: na bottom nav */
+  .btn-ghost { display: none; }
   .period-tabs { flex: 1; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .period-tabs::-webkit-scrollbar { display: none; }
   .ptab { padding: 7px 12px; font-size: 12px; white-space: nowrap; min-height: 36px; }
@@ -398,9 +392,13 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
   border-radius: var(--r-sm); white-space: nowrap;
 }
 .lud { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.lud.fresh { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.lud.fresh { background: var(--green); animation: ludpulse 1.6s ease-in-out infinite; }
 .lud.stale { background: var(--amber); }
 .lud.old   { background: var(--red); }
+@keyframes ludpulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(62,207,142,0.55); }
+  50%     { box-shadow: 0 0 0 5px rgba(62,207,142,0); }
+}
 
 /* ── MODO APRESENTAÇÃO ── */
 body.present-mode .sidebar { display: none !important; }
@@ -501,18 +499,6 @@ body.present-mode #btnPresent::before { content: '✕ '; }
   <div class="refresh-progress-text" id="refreshProgressText">Iniciando...</div>
 </div>
 
-<!-- TOKEN MODAL -->
-<div class="modal-wrap" id="tokenModal" style="display:none">
-  <div class="modal">
-    <div class="modal-title">Conectar Meta Ads</div>
-    <p class="modal-desc">Insira seu token de acesso da Meta API (longa duração) para carregar os dados reais de todas as unidades em tempo real.</p>
-    <div class="error-box" id="tokenError"></div>
-    <input class="input" type="password" id="tokenInput" placeholder="EAAxxxxxxxxxxxxxxxx..." />
-    <button class="btn" style="width:100%" onclick="conectar()">🔗 Conectar e carregar dados</button>
-    <div class="modal-link" onclick="demoMode()"><u>Continuar com dados de demonstração →</u></div>
-  </div>
-</div>
-
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="logo">
@@ -540,10 +526,6 @@ body.present-mode #btnPresent::before { content: '✕ '; }
     </div>
     <div class="nav-item" onclick="setNav(this,'Resumo Executivo')">
       <span class="nav-icon">★</span> Resumo Executivo
-    </div>
-    <div class="nav-label" style="margin-top:12px">Config</div>
-    <div class="nav-item" onclick="document.getElementById('tokenModal').style.display='flex'">
-      <span class="nav-icon">⚙</span> Token API
     </div>
   </nav>
   <div class="sidebar-foot">
@@ -577,7 +559,6 @@ body.present-mode #btnPresent::before { content: '✕ '; }
         <span id="lastUpdateText">—</span>
       </div>
       <button class="btn btn-ghost" id="btnPresent" onclick="togglePresentation()">⛶ Apresentar</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('tokenModal').style.display='flex'">⚙ Token</button>
       <button class="btn" id="btnRefresh" onclick="fetchAll(true)">↻ Atualizar</button>
     </div>
   </div>
@@ -621,16 +602,21 @@ const UNIDADES = [
   // { id: "<ID_DA_CONTA>", nome: "Diário Ville" },
 ];
 
-const CORES = [
-  "#FF6B00","#FF8C33","#E85500","#D44000","#C03000",
-  "#3ECF8E","#20B070","#0F9058","#F5A623","#D4880F",
-  "#60A8F0","#4088D0","#2068B0","#C060F0","#A040D0",
-  "#F06080","#D04060","#80C060","#60A040","#40802A",
-  "#60D0D0","#40B0B0","#FF9040"
-];
+// Paleta contida e alinhada à marca (laranja + cinza + preto) — alterna entre os dois tons
+// e varia a luminosidade para gerar quantas cores forem necessárias sem virar arco-íris.
+function buildPalette(n) {
+  const cores = [];
+  for (let i = 0; i < n; i++) {
+    const t = Math.floor(i / 2);
+    if (i % 2 === 0) cores.push(`hsl(24, 100%, ${Math.max(28, 58 - t * 6)}%)`);
+    else cores.push(`hsl(0, 0%, ${Math.max(22, 66 - t * 8)}%)`);
+  }
+  return cores;
+}
+const CORES = buildPalette(UNIDADES.length + 5);
 
-let TOKEN = "";
 let DEMO = true;
+let RD_CONFIGURED = false;
 let DATA = [];
 let PERIOD = "last_15d";
 let VIEW = "Performance";
@@ -643,15 +629,29 @@ const prevCache = {};
 const GOALS = JSON.parse(localStorage.getItem('pano_goals') || '{}');
 
 // ─────────────────────────────────────────────
-// API — chama via proxy Vercel
+// API — chama via proxy Vercel (o token é resolvido no servidor, nunca no client)
 // ─────────────────────────────────────────────
 async function apiCall(endpoint) {
   if (!VERCEL_URL) throw new Error("VERCEL_URL não configurada no código");
-  const url = `${VERCEL_URL}/api/meta?endpoint=${encodeURIComponent(endpoint)}&token=${encodeURIComponent(TOKEN)}`;
+  const url = `${VERCEL_URL}/api/meta?endpoint=${encodeURIComponent(endpoint)}`;
   const r = await fetch(url);
   const json = await r.json();
   if (json.error) throw new Error(json.error);
   return json;
+}
+
+// Consulta o backend para saber se há token(s) de produção configurados
+// (META_API_TOKENS_JSON / RD_STATION_API_TOKEN), sem nunca ver o valor deles.
+async function checkStatus() {
+  try {
+    const r = await fetch(`${VERCEL_URL}/api/status`);
+    const json = await r.json();
+    DEMO = !json.metaConfigured;
+    RD_CONFIGURED = !!json.rdConfigured;
+  } catch (e) {
+    DEMO = true;
+    RD_CONFIGURED = false;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -672,15 +672,27 @@ function getSinceUntil() {
 // FETCH DADOS REAIS
 // ─────────────────────────────────────────────
 async function fetchAll(force = false) {
-  if (DEMO) { DATA = gerarDemo(); cache[PERIOD] = DATA; populaFiltro(); render(); return; }
+  if (DEMO) {
+    DATA = gerarDemo();
+    cache[PERIOD] = DATA;
+    lastUpdateTime = new Date();
+    updateLastUpdateChip();
+    populaFiltro();
+    render();
+    return;
+  }
   if (!force && cache[PERIOD]) { DATA = cache[PERIOD]; populaFiltro(); render(); return; }
 
   showRefreshOverlay(0, UNIDADES.length);
   const { since, until } = getSinceUntil();
 
-  DATA = await mapLimit(UNIDADES, 5, u => fetchUnidade(u, since, until), (done, total) => {
-    showRefreshOverlay(done, total);
-  });
+  const [dados, conversoes] = await Promise.all([
+    mapLimit(UNIDADES, 5, u => fetchUnidade(u, since, until), (done, total) => {
+      showRefreshOverlay(done, total);
+    }),
+    fetchConversoes(since, until),
+  ]);
+  DATA = dados.map(d => aplicarConversao(d, conversoes));
   cache[PERIOD] = DATA;
   lastUpdateTime = new Date();
 
@@ -734,6 +746,41 @@ function updateLastUpdateChip() {
   dot.className = 'lud ' + (mins < 60 ? 'fresh' : mins < 180 ? 'stale' : 'old');
 }
 
+// ─────────────────────────────────────────────
+// CONVERSÃO REAL (RD Station CRM) — matrículas atribuídas aos leads do Meta
+// ─────────────────────────────────────────────
+async function fetchConversoes(since, until) {
+  if (!RD_CONFIGURED) return { byUnit: {} };
+  try {
+    const units = UNIDADES.map(u => u.nome).join('|');
+    const params = new URLSearchParams({
+      start_date: `${since}T00:00:00`,
+      end_date: `${until}T23:59:59`,
+      units,
+    });
+    const r = await fetch(`${VERCEL_URL}/api/rdstation?${params.toString()}`);
+    const json = await r.json();
+    if (!json.configured || json.error) {
+      if (json.error) console.error('RD Station:', json.error);
+      return { byUnit: {} };
+    }
+    return json;
+  } catch (e) {
+    console.error('RD Station:', e.message);
+    return { byUnit: {} };
+  }
+}
+
+// Mescla a contagem de matrículas (RD Station) num objeto de unidade vindo do Meta.
+// Se a API do RD Station falhar/não tiver dado, os campos ficam zerados e a UI mostra "--".
+function aplicarConversao(d, conv) {
+  const byUnit = (conv && conv.byUnit) || {};
+  const convertidos = byUnit[d.nome] || 0;
+  const taxaConv = d.leads > 0 ? (convertidos / d.leads) * 100 : 0;
+  const cac = convertidos > 0 ? d.gasto / convertidos : 0;
+  return { ...d, convertidos, taxaConv: +taxaConv.toFixed(2), cac: +cac.toFixed(2) };
+}
+
 async function fetchPrevPeriod() {
   if (DEMO) return;
   const key = PERIOD + '_prev';
@@ -772,15 +819,16 @@ function getPrevSum(field) {
 // Carrega insights + conjuntos de UMA unidade (as duas chamadas em paralelo).
 // Busca em nível de CAMPANHA para separar gasto de leads do gasto de branding.
 async function fetchUnidade(u, since, until) {
-  const vazio = { id: u.id, nome: u.nome, gasto:0, gastoLeads:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
+  const vazio = { id: u.id, nome: u.nome, gasto:0, gastoLeads:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, daily:[], adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
   try {
     const timeRange = JSON.stringify({ since, until });
     const fields = "spend,actions,impressions,clicks";
     const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=campaign`;
 
-    const [res, adsets] = await Promise.all([
+    const [res, adsets, daily] = await Promise.all([
       apiCall(endpoint),
       fetchAdsets(u.id, since, until),
+      fetchDaily(u.id, since, until),
     ]);
 
     // Agrega por campanha: gasto de leads separado do gasto de branding
@@ -812,6 +860,7 @@ async function fetchUnidade(u, since, until) {
       leads, cpl: +cpl.toFixed(2),
       visitas, cpv: +cpv.toFixed(2),
       impressoes, cliques, ctr: +ctr.toFixed(2),
+      daily,
       adsets,
       melhorAdset: best.nome, adsetLeads: best.leads, adsetCpl: best.cpl, adsetGasto: best.gasto,
       status: cpl === 0 ? 'a' : cpl <= 13 ? 'g' : cpl <= 17 ? 'a' : 'r',
@@ -834,6 +883,21 @@ async function fetchAdsets(accId, since, until) {
       const l = ins ? extrairAcao(ins.actions, ['lead']) : 0;
       return { nome: a.name, gasto: +g.toFixed(2), leads: l, cpl: l > 0 ? +(g / l).toFixed(2) : 0 };
     }).filter(a => a.gasto > 0 || a.leads > 0);
+  } catch { return []; }
+}
+
+// Série diária leve (nível de conta, sem quebra por campanha) — só alimenta os sparklines dos KPIs.
+async function fetchDaily(accId, since, until) {
+  try {
+    const timeRange = JSON.stringify({ since, until });
+    const endpoint = `act_${accId}/insights?fields=spend,actions&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=account`;
+    const res = await apiCall(endpoint);
+    return (res.data || []).map(r => ({
+      date: r.date_start,
+      gasto: parseFloat(r.spend || 0),
+      leads: extrairAcao(r.actions, ['lead']),
+      visitas: extrairAcao(r.actions, ['instagram_profile_visit']),
+    }));
   } catch { return []; }
 }
 
@@ -918,8 +982,33 @@ document.addEventListener('keydown', e => {
 // ─────────────────────────────────────────────
 // DEMO DATA
 // ─────────────────────────────────────────────
+function diasEntre(since, until) {
+  return Math.max(2, Math.round((new Date(until) - new Date(since)) / 86400000) + 1);
+}
+
+// Gera uma série diária fictícia (gasto/leads/visitas) que soma aproximadamente aos totais
+// da unidade — alimenta os sparklines dos KPIs no modo demonstração.
+function gerarDaily(gasto, leads, visitas, since, until) {
+  const days = diasEntre(since, until);
+  const wG = Array.from({ length: days }, () => 0.5 + Math.random());
+  const wL = Array.from({ length: days }, () => 0.5 + Math.random());
+  const wV = Array.from({ length: days }, () => 0.5 + Math.random());
+  const sG = wG.reduce((a, b) => a + b, 0), sL = wL.reduce((a, b) => a + b, 0), sV = wV.reduce((a, b) => a + b, 0);
+  const start = new Date(since);
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    return {
+      date: d.toISOString().split('T')[0],
+      gasto: +(gasto * wG[i] / sG).toFixed(2),
+      leads: Math.round(leads * wL[i] / sL),
+      visitas: Math.round(visitas * wV[i] / sV),
+    };
+  });
+}
+
 function gerarDemo() {
   const nomesAdset = ["Público aberto 25-45","Lookalike 1%","Engajamento IG","Interesse fitness","Remarketing forms","Público local 18-40","Captação WhatsApp","Branding perfil"];
+  const { since, until } = getSinceUntil();
   return UNIDADES.map((u, i) => {
     const gasto = 550 + Math.random() * 270;
     const gastoLeads = +(gasto * (0.55 + Math.random() * 0.35)).toFixed(2);
@@ -928,6 +1017,9 @@ function gerarDemo() {
     const impressoes = Math.floor(15000 + Math.random() * 35000);
     const cliques = Math.floor(impressoes * (0.008 + Math.random() * 0.02));
     const cpl = gastoLeads / leads;
+    const convertidos = Math.max(0, Math.round(leads * (0.12 + Math.random() * 0.28)));
+    const taxaConv = leads > 0 ? (convertidos / leads) * 100 : 0;
+    const cac = convertidos > 0 ? gasto / convertidos : 0;
 
     // 3 a 5 conjuntos fictícios que somam ~o total da unidade
     const nAdsets = 3 + Math.floor(Math.random() * 3);
@@ -949,6 +1041,8 @@ function gerarDemo() {
       cpv: +(gasto/visitas).toFixed(2),
       impressoes, cliques,
       ctr: +((cliques/impressoes)*100).toFixed(2),
+      convertidos, taxaConv: +taxaConv.toFixed(2), cac: +cac.toFixed(2),
+      daily: gerarDaily(gasto, leads, visitas, since, until),
       adsets,
       melhorAdset: best.nome, adsetLeads: best.leads, adsetCpl: best.cpl, adsetGasto: best.gasto,
       status: cpl <= 13 ? 'g' : cpl <= 17 ? 'a' : 'r',
@@ -984,18 +1078,21 @@ function render() {
   if (donutChart) { donutChart.destroy(); donutChart = null; }
 
   if (!dados.length) { el.innerHTML = '<div class="alert">⚠ Nenhum dado disponível.</div>'; return; }
-  if (DEMO) el.innerHTML += `<div class="alert">⚡ Modo demonstração ativo — conecte seu token Meta API para dados reais.</div>`;
+  if (DEMO) el.innerHTML += `<div class="alert">⚡ Modo demonstração ativo — nenhum token configurado no servidor. Veja o README para configurar META_API_TOKENS_JSON.</div>`;
 
   if (VIEW === 'Leads') renderLeads(el, dados);
   else if (VIEW === 'Branding IG') renderBranding(el, dados);
   else if (VIEW === 'Conjuntos') renderConjuntos(el, dados);
   else if (VIEW === 'Resumo Executivo') renderExecSummary(el, dados);
   else renderPerformance(el, dados);
+
+  initCountUps(el);
 }
 
 // ── PERFORMANCE: visão geral (investimento + leads + IG) ──
 function renderPerformance(el, dados) {
   const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
+  const tConv = sum(dados,'convertidos');
   const cplM = tL > 0 ? tGL/tL : 0, cpvM = tV > 0 ? tG/tV : 0;
   const maxG = Math.max(...dados.map(d => d.gasto));
 
@@ -1003,24 +1100,26 @@ function renderPerformance(el, dados) {
   const pvCpl = pvL > 0 ? pvGL / pvL : null;
 
   el.innerHTML += `<div class="consolidated-banner">
-    <div class="cb-item"><div class="cb-label">Total Investido</div><div class="cb-val"><span>R$</span> ${fmt(tG)}</div><div class="cb-var">${varBadge(tG,pvG,false)}</div></div>
-    <div class="cb-item"><div class="cb-label">Total de Leads</div><div class="cb-val">${tL.toLocaleString('pt-BR')}</div><div class="cb-var">${varBadge(tL,pvL,false)}</div></div>
-    <div class="cb-item"><div class="cb-label">CPL Médio Geral</div><div class="cb-val"><span>R$</span> ${cplM.toFixed(2)}</div><div class="cb-var">${varBadge(cplM,pvCpl,true)}</div></div>
-    <div class="cb-item"><div class="cb-label">Visitas Perfil IG</div><div class="cb-val">${tV.toLocaleString('pt-BR')}</div><div class="cb-var">${varBadge(tV,pvV,false)}</div></div>
+    <div class="cb-item"><div class="cb-label">Total Investido</div><div class="cb-val"><span>R$</span> ${numSpan(tG,2)}</div><div class="cb-var">${varBadge(tG,pvG,false)}</div></div>
+    <div class="cb-item"><div class="cb-label">Total de Leads</div><div class="cb-val">${numSpan(tL,0)}</div><div class="cb-var">${varBadge(tL,pvL,false)}</div></div>
+    <div class="cb-item"><div class="cb-label">CPL Médio Geral</div><div class="cb-val"><span>R$</span> ${numSpan(cplM,2)}</div><div class="cb-var">${varBadge(cplM,pvCpl,true)}</div></div>
+    <div class="cb-item"><div class="cb-label">Visitas Perfil IG</div><div class="cb-val">${numSpan(tV,0)}</div><div class="cb-var">${varBadge(tV,pvV,false)}</div></div>
   </div>`;
 
   el.innerHTML += `<div class="kpi-grid stagger">
-    ${kpiCard('💰','Investimento total',`<span>R$</span> ${fmt(tG)}`,'neutral',`${dados.length} unidades ativas`)}
-    ${kpiCard('🎯','Leads gerados', tL.toLocaleString('pt-BR'),'neutral','via formulários')}
-    ${kpiCard('📉','CPL médio',`<span>R$</span> ${cplM.toFixed(2)}`, cplM<=13?'up':'down', cplM<=13?'▲ Dentro da meta':'▼ Acima da meta R$13')}
-    ${kpiCard('📱','Visitas perfil IG', tV.toLocaleString('pt-BR'),'neutral',`R$ ${cpvM.toFixed(2)} por visita`)}
+    ${kpiCard('💰','Investimento total',`<span>R$</span> ${numSpan(tG,2)}`,'neutral',`${dados.length} unidades ativas`, dailySeries(dados,'gasto'), '#FF6B00')}
+    ${kpiCard('🎯','Leads gerados', numSpan(tL,0),'neutral','via formulários', dailySeries(dados,'leads'), '#3ECF8E')}
+    ${kpiCard('📉','CPL médio',`<span>R$</span> ${numSpan(cplM,2)}`, cplM<=13?'up':'down', cplM<=13?'▲ Dentro da meta':'▼ Acima da meta R$13', dailyCplSeries(dados), '#F5A623')}
+    ${kpiCard('📱','Visitas perfil IG', numSpan(tV,0),'neutral',`R$ ${fmt(cpvM)} por visita`, dailySeries(dados,'visitas'), '#60A8F0')}
   </div>`;
+
+  el.innerHTML += funnelSection(dados);
 
   el.innerHTML += chartsRow('CPL por unidade','Meta: R$ 13,00','Investimento');
 
   el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Performance por unidade</div><div class="chip">${dados.length} unidades</div></div>
   <div class="table-wrap"><table>
-    <thead><tr><th>Unidade</th><th>Gasto (R$)</th><th>Leads</th><th>CPL (R$)</th><th>Visitas IG</th><th>Meta</th><th>Status</th><th>Invest.</th></tr></thead>
+    <thead><tr><th>Unidade</th><th>Gasto (R$)</th><th>Leads</th><th>CPL (R$)</th><th>Convertidos</th><th>Taxa Conv.</th><th>CAC (R$)</th><th>Visitas IG</th><th>Meta</th><th>Status</th><th>Invest.</th></tr></thead>
     <tbody>${dados.map(d=>{
       const goal = getGoal(d.id);
       return `<tr>
@@ -1028,6 +1127,9 @@ function renderPerformance(el, dados) {
         <td>R$ ${fmt(d.gasto)}</td>
         <td>${d.leads}</td>
         <td>${d.cpl>0?badgeCpl(d.cpl):'—'}</td>
+        <td>${convertidosCell(d)}</td>
+        <td>${taxaConvCell(d)}</td>
+        <td>${cacCell(d)}</td>
         <td>${d.visitas.toLocaleString('pt-BR')}</td>
         <td onclick="editGoal('${d.id}')" style="cursor:pointer">${goalBar(d.leads, goal)}</td>
         <td>${statusBadge(d)}</td>
@@ -1040,19 +1142,96 @@ function renderPerformance(el, dados) {
     <div class="card"><div class="card-hd"><div class="card-title">Melhor conjunto por unidade</div><div class="chip">menor CPL</div></div>
       ${dados.filter(d=>d.melhorAdset&&d.melhorAdset!=='—').slice(0,10).map(d=>`<div class="adset-row"><div><div class="adset-unit">${d.nome}</div><div class="adset-name">${d.melhorAdset}</div></div><div class="adset-cpl">R$ ${d.adsetCpl>0?d.adsetCpl.toFixed(2):'—'}</div></div>`).join('') || vazioInline('Sem conjuntos com leads no período.')}
     </div>
-    <div class="card"><div class="card-hd"><div class="card-title">Ranking de leads</div><div class="chip">top unidades</div></div>
-      <table><thead><tr><th>#</th><th>Unidade</th><th>Leads</th><th>CPL</th></tr></thead>
-      <tbody>${[...dados].sort((a,b)=>b.leads-a.leads).slice(0,10).map((d,i)=>`<tr>
-        <td style="color:${rankColor(i)};font-weight:600">${i+1}</td>
-        <td>${d.nome}</td><td><strong>${d.leads}</strong></td><td>${d.cpl>0?badgeCpl(d.cpl):'—'}</td>
-      </tr>`).join('')}</tbody></table>
-    </div>
+    ${rankingCard(dados)}
   </div>`;
 
   requestAnimationFrame(() => {
     drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
     drawDonut(dados.map(d=>d.nome), dados.map(d=>d.gasto), v=>` R$ ${v.toFixed(0)}`, v=>'R$'+Math.round(v));
   });
+}
+
+function convertidosCell(d) {
+  if (!RD_CONFIGURED) return '<span style="color:var(--text-dim)">--</span>';
+  return `<strong>${d.convertidos}</strong>`;
+}
+function taxaConvCell(d) {
+  if (!RD_CONFIGURED || d.leads === 0) return '<span style="color:var(--text-dim)">--</span>';
+  return `${d.taxaConv.toFixed(1)}%`;
+}
+function cacCell(d) {
+  if (!RD_CONFIGURED || d.convertidos === 0) return '<span style="color:var(--text-dim)">--</span>';
+  return `R$ ${fmt(d.cac)}`;
+}
+
+// ── FUNIL DE CONVERSÃO: Investimento → Leads → Convertidos ──
+function funnelSection(dados) {
+  const tG = sum(dados,'gasto'), tL = sum(dados,'leads'), tConv = sum(dados,'convertidos');
+  const cplM = tL > 0 ? sum(dados,'gastoLeads')/tL : 0;
+  const convPct = tL > 0 ? (tConv/tL)*100 : 0;
+  const cacM = tConv > 0 ? tG/tConv : 0;
+
+  return `<div class="card funnel-card">
+    <div class="card-hd"><div class="card-title">Funil de Conversão</div><div class="chip">Investimento → Leads → Convertidos</div></div>
+    <div class="funnel-row">
+      <div class="funnel-step">
+        <div class="funnel-icon">💰</div>
+        <div class="funnel-label">Investimento</div>
+        <div class="funnel-val">R$ ${numSpan(tG,2)}</div>
+        <div class="funnel-bar"><div class="funnel-fill" style="width:100%"></div></div>
+      </div>
+      <div class="funnel-arrow">→</div>
+      <div class="funnel-step">
+        <div class="funnel-icon">🎯</div>
+        <div class="funnel-label">Leads</div>
+        <div class="funnel-val">${numSpan(tL,0)}</div>
+        <div class="funnel-bar"><div class="funnel-fill" style="width:100%"></div></div>
+        <div class="funnel-sub">R$ ${fmt(cplM)} / lead</div>
+      </div>
+      <div class="funnel-arrow">→</div>
+      <div class="funnel-step">
+        <div class="funnel-icon">✅</div>
+        <div class="funnel-label">Convertidos</div>
+        <div class="funnel-val">${RD_CONFIGURED ? numSpan(tConv,0) : '--'}</div>
+        <div class="funnel-bar"><div class="funnel-fill" style="width:${RD_CONFIGURED ? Math.min(100,convPct) : 0}%"></div></div>
+        <div class="funnel-sub">${RD_CONFIGURED ? `${convPct.toFixed(1)}% dos leads · CAC R$ ${fmt(cacM)}` : 'RD Station não configurado'}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── RANKING sortável por unidade (Leads / Convertidos / Taxa / CAC / CPL) ──
+let RANK_SORT = { col: 'leads', dir: 'desc' };
+function sortRanking(col) {
+  if (RANK_SORT.col === col) RANK_SORT.dir = RANK_SORT.dir === 'desc' ? 'asc' : 'desc';
+  else RANK_SORT = { col, dir: 'desc' };
+  render();
+}
+function rankArrow(col) { return RANK_SORT.col === col ? (RANK_SORT.dir === 'desc' ? ' ▼' : ' ▲') : ''; }
+
+function rankingCard(dados) {
+  const dir = RANK_SORT.dir === 'desc' ? -1 : 1;
+  const col = RANK_SORT.col;
+  const val = d => col === 'cpl' || col === 'cac' ? (d[col] > 0 ? d[col] : Infinity) : (d[col] || 0);
+  const ordenados = [...dados].sort((a,b) => (val(a) - val(b)) * dir);
+
+  const th = (label, key) => `<th style="cursor:pointer" onclick="sortRanking('${key}')">${label}${rankArrow(key)}</th>`;
+
+  return `<div class="card"><div class="card-hd"><div class="card-title">Ranking por unidade</div><div class="chip">clique na coluna p/ ordenar</div></div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>#</th><th>Unidade</th>
+      ${th('Leads','leads')}${th('Convertidos','convertidos')}${th('Taxa Conv.','taxaConv')}${th('CAC','cac')}${th('CPL','cpl')}
+    </tr></thead>
+    <tbody>${ordenados.map((d,i)=>`<tr>
+      <td style="color:${rankColor(i)};font-weight:600">${i+1}</td>
+      <td>${d.nome}</td>
+      <td><strong>${d.leads}</strong></td>
+      <td>${convertidosCell(d)}</td>
+      <td>${taxaConvCell(d)}</td>
+      <td>${cacCell(d)}</td>
+      <td>${d.cpl>0?badgeCpl(d.cpl):'—'}</td>
+    </tr>`).join('')}</tbody></table></div>
+  </div>`;
 }
 
 // ── LEADS: foco em geração de leads e CPL ──
@@ -1146,7 +1325,7 @@ function renderConjuntos(el, dados) {
   dados.forEach(d => (d.adsets||[]).forEach(a => todos.push({ ...a, unidade: d.nome })));
 
   if (!todos.length) {
-    el.innerHTML += `<div class="card">${vazioInline('Nenhum conjunto no período. Conecte o token Meta para carregar os conjuntos reais (no modo demo eles são gerados automaticamente).')}</div>`;
+    el.innerHTML += `<div class="card">${vazioInline('Nenhum conjunto no período (no modo demo eles são gerados automaticamente; em produção, confirme se o token Meta desta conta está configurado no servidor).')}</div>`;
     return;
   }
 
@@ -1264,8 +1443,72 @@ const sum = (arr, k) => arr.reduce((s,d) => s + (d[k] || 0), 0);
 const pct = (v, max) => max > 0 ? Math.round((v / max) * 100) : 0;
 const rankColor = i => i===0 ? 'var(--orange)' : i===1 ? '#aaa' : i===2 ? '#885522' : 'var(--text-dim)';
 
-function kpiCard(icon, label, val, subCls, subTxt) {
-  return `<div class="kpi"><span class="kpi-icon">${icon}</span><div class="kpi-label">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub ${subCls}">${subTxt}</div></div>`;
+function kpiCard(icon, label, val, subCls, subTxt, sparkVals, sparkColor) {
+  const spark = (sparkVals && sparkVals.length > 1) ? `<div class="kpi-spark">${sparklineSvg(sparkVals, sparkColor)}</div>` : '';
+  return `<div class="kpi"><span class="kpi-icon">${icon}</span><div class="kpi-label">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub ${subCls}">${subTxt}</div>${spark}</div>`;
+}
+
+// ─────────────────────────────────────────────
+// COUNT-UP dos KPIs principais
+// ─────────────────────────────────────────────
+// Envolve um número em <span class="cu" data-raw="valor" data-dec="casas">valor formatado</span>.
+// initCountUps() anima do zero até o valor real toda vez que o conteúdo é (re)renderizado.
+function numSpan(value, decimals = 0) {
+  const formatted = value.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return `<span class="cu" data-raw="${value}" data-dec="${decimals}">${formatted}</span>`;
+}
+
+function initCountUps(root) {
+  root.querySelectorAll('.cu[data-raw]').forEach(el => {
+    const target = parseFloat(el.dataset.raw);
+    const dec = parseInt(el.dataset.dec || '0', 10);
+    if (isNaN(target)) return;
+    const duration = 700;
+    const t0 = performance.now();
+    const fmtVal = v => v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    function frame(now) {
+      const p = Math.min(1, (now - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmtVal(target * eased);
+      if (p < 1) requestAnimationFrame(frame);
+      else el.textContent = fmtVal(target);
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+// ─────────────────────────────────────────────
+// SPARKLINES (tendência dentro do card de KPI)
+// ─────────────────────────────────────────────
+function sparklineSvg(values, color = '#FF6B00', w = 100, h = 28) {
+  if (!values || values.length < 2) return '';
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`).join(' ');
+  const lastX = ((values.length - 1) * step).toFixed(1);
+  const lastY = (h - ((values[values.length - 1] - min) / range) * h).toFixed(1);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${lastX}" cy="${lastY}" r="2.2" fill="${color}"/>
+  </svg>`;
+}
+
+// Soma um campo diário (gasto/leads/visitas) de todas as unidades filtradas, por data.
+function dailySeries(dados, field) {
+  const map = {};
+  dados.forEach(d => (d.daily || []).forEach(p => { map[p.date] = (map[p.date] || 0) + (p[field] || 0); }));
+  return Object.keys(map).sort().map(k => map[k]);
+}
+
+// Série diária de CPL médio (gasto de todas as unidades / leads de todas, por dia).
+function dailyCplSeries(dados) {
+  const gMap = {}, lMap = {};
+  dados.forEach(d => (d.daily || []).forEach(p => {
+    gMap[p.date] = (gMap[p.date] || 0) + (p.gasto || 0);
+    lMap[p.date] = (lMap[p.date] || 0) + (p.leads || 0);
+  }));
+  return Object.keys(gMap).sort().map(k => lMap[k] > 0 ? gMap[k] / lMap[k] : 0);
 }
 
 function vazioInline(msg) {
@@ -1372,49 +1615,23 @@ function setPeriod(p, el) {
   fetchAll();   // usa o cache do período se já tiver sido carregado
 }
 
-// ─────────────────────────────────────────────
-// TOKEN
-// ─────────────────────────────────────────────
-async function conectar() {
-  const token = document.getElementById('tokenInput').value.trim();
-  const errBox = document.getElementById('tokenError');
-  errBox.style.display = 'none';
-
-  if (!token) { errBox.textContent = 'Cole seu token antes de continuar.'; errBox.style.display = 'block'; return; }
-  if (!VERCEL_URL) { errBox.textContent = 'VERCEL_URL não configurada no código. Faça o deploy no Vercel primeiro.'; errBox.style.display = 'block'; return; }
-
-  TOKEN = token;
-  DEMO = false;
-  clearCache();
-  document.getElementById('tokenModal').style.display = 'none';
-  document.getElementById('dot').classList.add('live');
-  document.getElementById('connLabel').textContent = 'Conectado';
-  await fetchAll(true);
-}
-
-function demoMode() {
-  DEMO = true;
-  clearCache();
-  document.getElementById('tokenModal').style.display = 'none';
-  document.getElementById('connLabel').textContent = 'Demo mode';
-  fetchAll();
-}
-
 function clearCache() { for (const k in cache) delete cache[k]; }
 
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
+  await checkStatus();
+  document.getElementById('connLabel').textContent = DEMO ? 'Demo mode' : 'Conectado';
+  document.getElementById('dot').classList.toggle('live', !DEMO);
+  populaFiltro();
+  await fetchAll();
+
   setTimeout(() => {
     const l = document.getElementById('loader');
     l.style.opacity = '0';
-    setTimeout(() => {
-      l.style.display = 'none';
-      populaFiltro();
-      document.getElementById('tokenModal').style.display = 'flex';
-    }, 500);
-  }, 1800);
+    setTimeout(() => { l.style.display = 'none'; }, 500);
+  }, 1200);
 });
 </script>
 

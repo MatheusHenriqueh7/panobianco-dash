@@ -1,4 +1,11 @@
 # Artefatos locais de preview/desenvolvimento
 .preview-server.ps1
-.claude/launch.json
+.claude/
+.agents/
+skills-lock.json
 .__check.js
+
+# Segredos locais (tokens Meta/RD Station) — nunca commitar
+.env.local
+.env*.local
+.vercel
