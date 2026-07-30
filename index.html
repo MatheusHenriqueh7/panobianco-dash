@@ -85,6 +85,28 @@ body { background: var(--black); color: var(--text); font-family: var(--font-bod
   font-family: var(--font-body); transition: all 0.15s;
 }
 .ptab.active { background: var(--orange); color: #fff; }
+.period-custom-wrap { position: relative; }
+.custom-period-chip {
+  font-size: 11px; color: var(--text-sec); margin-left: 2px; padding: 5px 10px;
+  border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface2);
+  white-space: nowrap;
+}
+.period-custom-pop {
+  display: none; position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); min-width: 260px;
+}
+.period-custom-pop.show { display: block; }
+.period-custom-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.period-custom-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.period-custom-field label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.period-custom-field input[type="date"] {
+  background: var(--surface3); border: 1px solid var(--border); border-radius: 4px;
+  padding: 6px 8px; color: var(--text); font-family: var(--font-body); font-size: 12px;
+  color-scheme: dark;
+}
+.period-custom-err { font-size: 11px; color: var(--red); margin-bottom: 8px; display: none; }
+.period-custom-err.show { display: block; }
 .filter-box {
   display: flex; align-items: center; gap: 6px;
   background: var(--surface2); border: 1px solid var(--border);
@@ -552,7 +574,26 @@ body.present-mode #btnPresent::before { content: '✕ '; }
         <button class="ptab active" onclick="setPeriod('15d',this)">15 dias</button>
         <button class="ptab" onclick="setPeriod('30d',this)">30 dias</button>
         <button class="ptab" onclick="setPeriod('mes',this)">Mês atual</button>
+        <div class="period-custom-wrap">
+          <button class="ptab" id="ptabCustom" onclick="togglePeriodoPersonalizado(this)">Personalizado</button>
+          <div class="period-custom-pop" id="periodoPersonalizadoPop">
+            <div class="period-custom-row">
+              <div class="period-custom-field">
+                <label for="customSinceInput">De</label>
+                <input type="date" id="customSinceInput">
+              </div>
+              <div class="period-custom-field">
+                <label for="customUntilInput">Até</label>
+                <input type="date" id="customUntilInput">
+              </div>
+            </div>
+            <div class="period-custom-err" id="periodoPersonalizadoErr"></div>
+            <button class="btn" style="width:100%;justify-content:center" onclick="aplicarPeriodoPersonalizado()">Aplicar</button>
+          </div>
+        </div>
       </div>
+      <span class="custom-period-chip" id="customPeriodChip" style="display:none"></span>
+      <span class="custom-period-chip" id="convTruncatedWarn" style="display:none;color:var(--amber);border-color:var(--amber)" title="O período escolhido tem volume de dados alto demais para buscar tudo dentro do tempo disponível — o número de Convertidos pode estar subestimado. Tente um período menor para dados completos.">⚠ Convertidos incompletos p/ este período</span>
       <div class="filter-box">
         <span class="filter-label">Unidade</span>
         <select id="unitSel" onchange="render()"></select>
@@ -622,8 +663,10 @@ let DEMO = true;
 let RD_CONFIGURED = false;
 let DATA = [];
 let PERIOD = "last_15d";
+let customSince = null, customUntil = null; // ativos só quando PERIOD === 'custom'
 let VIEW = "Performance";
 const cache = {};
+const cacheTruncated = {}; // acompanha `cache` — se a conversão daquele período veio incompleta
 let barChart = null, donutChart = null;
 let presentMode = false;
 let lastUpdateTime = null;
@@ -663,6 +706,7 @@ async function checkStatus() {
 function getSinceUntil() {
   const today = new Date();
   const fmt = d => d.toISOString().split('T')[0];
+  if (PERIOD === "custom" && customSince && customUntil) return { since: customSince, until: customUntil };
   let since;
   if (PERIOD === "last_15d") { since = new Date(today); since.setDate(today.getDate() - 14); }
   else if (PERIOD === "last_30d") { since = new Date(today); since.setDate(today.getDate() - 29); }
@@ -671,20 +715,33 @@ function getSinceUntil() {
   return { since: fmt(since), until: fmt(today) };
 }
 
+// Chave de cache do período ativo — para "custom" inclui o intervalo real, senão
+// datas diferentes escolhidas em "Personalizado" colidiriam no mesmo cache.
+function periodCacheKey() {
+  return PERIOD === 'custom' ? `custom_${customSince}_${customUntil}` : PERIOD;
+}
+
 // ─────────────────────────────────────────────
 // FETCH DADOS REAIS
 // ─────────────────────────────────────────────
 async function fetchAll(force = false) {
+  const key = periodCacheKey();
+  const warn = document.getElementById('convTruncatedWarn');
   if (DEMO) {
     DATA = gerarDemo();
-    cache[PERIOD] = DATA;
+    cache[key] = DATA;
+    if (warn) warn.style.display = 'none';
     lastUpdateTime = new Date();
     updateLastUpdateChip();
     populaFiltro();
     render();
     return;
   }
-  if (!force && cache[PERIOD]) { DATA = cache[PERIOD]; populaFiltro(); render(); return; }
+  if (!force && cache[key]) {
+    DATA = cache[key];
+    if (warn) warn.style.display = cacheTruncated[key] ? 'inline-block' : 'none';
+    populaFiltro(); render(); return;
+  }
 
   showRefreshOverlay(0, UNIDADES.length);
   const { since, until } = getSinceUntil();
@@ -696,8 +753,11 @@ async function fetchAll(force = false) {
     fetchConversoes(since, until),
   ]);
   DATA = dados.map(d => aplicarConversao(d, conversoes));
-  cache[PERIOD] = DATA;
+  cache[key] = DATA;
+  cacheTruncated[key] = !!conversoes.truncated;
   lastUpdateTime = new Date();
+
+  if (warn) warn.style.display = conversoes.truncated ? 'inline-block' : 'none';
 
   document.getElementById('dot').classList.add('live');
   document.getElementById('connLabel').textContent = 'Conectado';
@@ -767,6 +827,7 @@ async function fetchConversoes(since, until) {
       if (json.error) console.error('RD Station:', json.error);
       return { byUnit: {} };
     }
+    if (json.truncated) console.warn('RD Station: período muito longo, conversões podem estar incompletas (paginação atingiu o limite de tempo/páginas).');
     return json;
   } catch (e) {
     console.error('RD Station:', e.message);
@@ -786,7 +847,7 @@ function aplicarConversao(d, conv) {
 
 async function fetchPrevPeriod() {
   if (DEMO) return;
-  const key = PERIOD + '_prev';
+  const key = periodCacheKey() + '_prev';
   if (prevCache[key]) { prevData = prevCache[key]; render(); return; }
   const { since, until } = getPrevSinceUntil();
   try {
@@ -806,6 +867,13 @@ function getPrevSinceUntil() {
   } else if (PERIOD === 'last_30d') {
     until = new Date(today); until.setDate(today.getDate() - 30);
     since = new Date(until); since.setDate(until.getDate() - 29);
+  } else if (PERIOD === 'custom' && customSince && customUntil) {
+    // período anterior = mesma duração, imediatamente antes do intervalo customizado
+    const curSince = new Date(customSince + 'T00:00:00');
+    const curUntil = new Date(customUntil + 'T00:00:00');
+    const durationDays = Math.round((curUntil - curSince) / 86400000);
+    until = new Date(curSince); until.setDate(until.getDate() - 1);
+    since = new Date(until); since.setDate(until.getDate() - durationDays);
   } else {
     since = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     until = new Date(today.getFullYear(), today.getMonth(), 0);
@@ -1376,7 +1444,7 @@ function renderExecSummary(el, dados) {
   const { since, until } = getSinceUntil();
   const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
   const cplM = tL > 0 ? tGL/tL : 0;
-  const periodLabel = PERIOD === 'last_15d' ? 'Últimos 15 dias' : PERIOD === 'last_30d' ? 'Últimos 30 dias' : 'Mês atual';
+  const periodLabel = PERIOD === 'last_15d' ? 'Últimos 15 dias' : PERIOD === 'last_30d' ? 'Últimos 30 dias' : PERIOD === 'custom' ? 'Período personalizado' : 'Mês atual';
 
   const comLeads = dados.filter(d => d.leads > 0 && d.cpl > 0).sort((a,b) => a.cpl - b.cpl);
   const top3 = comLeads.slice(0, 3);
@@ -1693,7 +1761,70 @@ function setPeriod(p, el) {
   document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   PERIOD = p === '15d' ? 'last_15d' : p === '30d' ? 'last_30d' : 'mes';
+  fecharPeriodoPersonalizado();
+  const chip = document.getElementById('customPeriodChip');
+  if (chip) chip.style.display = 'none';
   fetchAll();   // usa o cache do período se já tiver sido carregado
+}
+
+// ── PERÍODO PERSONALIZADO ──
+function togglePeriodoPersonalizado(btn) {
+  const pop = document.getElementById('periodoPersonalizadoPop');
+  if (!pop) return;
+  const abrindo = !pop.classList.contains('show');
+  if (abrindo) {
+    document.getElementById('customSinceInput').value = customSince || '';
+    document.getElementById('customUntilInput').value = customUntil || '';
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('customSinceInput').max = hoje;
+    document.getElementById('customUntilInput').max = hoje;
+    pop.classList.add('show');
+  } else {
+    pop.classList.remove('show');
+  }
+}
+
+function fecharPeriodoPersonalizado() {
+  const pop = document.getElementById('periodoPersonalizadoPop');
+  if (pop) pop.classList.remove('show');
+  const err = document.getElementById('periodoPersonalizadoErr');
+  if (err) err.classList.remove('show');
+}
+
+// Valida o intervalo escolhido: início antes do fim, nenhuma data no futuro.
+function validarPeriodoPersonalizado(since, until) {
+  if (!since || !until) return { ok:false, msg:'Preencha as duas datas.' };
+  const hoje = new Date().toISOString().split('T')[0];
+  if (since > hoje || until > hoje) return { ok:false, msg:'A data não pode ser no futuro.' };
+  if (since >= until) return { ok:false, msg:'A data de início deve ser anterior à data de fim.' };
+  return { ok:true };
+}
+
+function aplicarPeriodoPersonalizado() {
+  const since = document.getElementById('customSinceInput').value;
+  const until = document.getElementById('customUntilInput').value;
+  const errEl = document.getElementById('periodoPersonalizadoErr');
+  const check = validarPeriodoPersonalizado(since, until);
+  if (!check.ok) {
+    errEl.textContent = check.msg;
+    errEl.classList.add('show');
+    return;
+  }
+  errEl.classList.remove('show');
+  customSince = since;
+  customUntil = until;
+  PERIOD = 'custom';
+
+  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+  document.getElementById('ptabCustom').classList.add('active');
+  fecharPeriodoPersonalizado();
+
+  const fmtBr = s => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const chip = document.getElementById('customPeriodChip');
+  chip.textContent = `${fmtBr(since)} – ${fmtBr(until)}`;
+  chip.style.display = 'inline-block';
+
+  fetchAll();
 }
 
 function clearCache() { for (const k in cache) delete cache[k]; }
@@ -1713,6 +1844,12 @@ window.addEventListener('load', async () => {
     l.style.opacity = '0';
     setTimeout(() => { l.style.display = 'none'; }, 500);
   }, 1200);
+});
+
+// Fecha o popover de período personalizado ao clicar fora dele.
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.period-custom-wrap');
+  if (wrap && !wrap.contains(e.target)) fecharPeriodoPersonalizado();
 });
 </script>
 
