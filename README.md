@@ -73,15 +73,16 @@ segue funcionando normalmente com os dados do Meta.
 
 | Variável | Default | Para que serve |
 |---|---|---|
-| `RD_STATION_UNIT_FIELD_LABEL` | `Unidade` | Label do campo personalizado da negociação que guarda o nome da unidade. Descoberto automaticamente por nome — se você renomear o campo no RD Station, ajuste aqui. |
 | `RD_STATION_SOURCE_MATCH` | `Facebook Ads,Busca Paga` | Trechos (separados por vírgula) que identificam a origem Meta Ads no `deal_source` da negociação. |
 | `RD_STATION_WON_STAGE_MATCH` | *(vazio)* | Se preenchido, além do campo nativo "ganho" (`win=true`) do RD Station, também exige que o nome da etapa (`deal_stage`) contenha esse texto (ex: `Matriculado`). |
 
-> O campo "Unidade" no RD Station é texto livre (preenchido manualmente pela equipe), então o
+> A unidade de cada negociação é identificada pelo **nome da campanha** (`deal.campaign.name`,
+> ex: `"(MM) ENVIO DE LEADS - CONDADO"`) — não existe um campo personalizado confiável para isso
+> no RD Station (o campo "Unidade" existe mas não é preenchido em nenhuma negociação). O
 > cruzamento com o nome usado no Meta Ads é feito por aproximação (ignora acentuação/maiúsculas
 > e aceita correspondência parcial). Negociações cujo texto não bate com nenhuma unidade
 > conhecida ficam agrupadas em `unmatched` na resposta de `/api/rdstation` — útil para depurar
-> digitação divergente sem perder o dado.
+> nomes de campanha divergentes sem perder o dado.
 
 ## Rodando localmente
 

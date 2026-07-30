@@ -1,10 +1,12 @@
 // api/rdstation.js — Busca negociações "ganhas" (matrículas) no RD Station CRM (API v1)
 // e agrupa por unidade Panobianco, cruzando com o mesmo nome de unidade usado no Meta Ads.
 //
+// A unidade de cada negociação é identificada pelo NOME DA CAMPANHA (`deal.campaign.name`,
+// ex: "(MM) ENVIO DE LEADS - CONDADO"), não por um campo personalizado — o campo "Unidade"
+// existe no RD Station mas não é preenchido em nenhuma negociação (confirmado em produção).
+//
 // Configuração via variável de ambiente (nunca exposta ao client):
 // - RD_STATION_API_TOKEN        (obrigatório) — token privado da API v1 do RD Station CRM.
-// - RD_STATION_UNIT_FIELD_LABEL (opcional)    — label do campo personalizado que guarda a
-//                                                unidade na negociação. Default: "Unidade".
 // - RD_STATION_SOURCE_MATCH     (opcional)    — trechos (separados por vírgula) que identificam
 //                                                origem Meta Ads no deal_source.
 //                                                Default: "Facebook Ads,Busca Paga".
@@ -25,24 +27,6 @@ function normalize(str) {
 function matchesAny(value, substrings) {
   const v = normalize(value);
   return substrings.some(s => v.includes(normalize(s)));
-}
-
-// Cache em memória do processo (válido enquanto a function serverless ficar "quente").
-let unitFieldCache = null;
-
-async function findUnitFieldId(token, label) {
-  if (unitFieldCache && unitFieldCache.label === label) return unitFieldCache.id;
-  const url = `${RD_BASE}/custom_fields?token=${encodeURIComponent(token)}&for=deal`;
-  const r = await fetch(url);
-  const json = await r.json();
-  const fields = Array.isArray(json) ? json : (json.custom_fields || json.data || []);
-  const target = normalize(label);
-  const found = fields.find(f => normalize(f.label || f.name) === target);
-  if (found) {
-    unitFieldCache = { label, id: found.id };
-    return found.id;
-  }
-  return null;
 }
 
 async function fetchDeals(token, startDate, endDate, wonStageMatch) {
@@ -78,13 +62,11 @@ async function fetchDeals(token, startDate, endDate, wonStageMatch) {
   return deals;
 }
 
-function extractUnitValue(deal, unitFieldId) {
-  const fields = deal.deal_custom_fields || deal.custom_fields || [];
-  const entry = fields.find(f => f.custom_field_id === unitFieldId);
-  return entry ? entry.value : null;
+function extractUnitValue(deal) {
+  return (deal.campaign && deal.campaign.name) || null;
 }
 
-// Casa o valor (texto livre) do campo "Unidade" com o nome canônico usado no Meta Ads.
+// Casa o nome da campanha (texto livre) com o nome canônico da unidade usado no Meta Ads.
 function matchUnit(rawValue, unitNames) {
   const norm = normalize(rawValue);
   if (!norm) return null;
@@ -114,33 +96,23 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Parâmetros start_date, end_date e units são obrigatórios' });
   }
 
-  const unitFieldLabel = process.env.RD_STATION_UNIT_FIELD_LABEL || 'Unidade';
   const sourceMatch = (process.env.RD_STATION_SOURCE_MATCH || 'Facebook Ads,Busca Paga').split(',').map(s => s.trim()).filter(Boolean);
   const wonStageMatch = (process.env.RD_STATION_WON_STAGE_MATCH || '').trim() || null;
   const unitNames = units.split('|').map(s => s.trim()).filter(Boolean);
 
   try {
-    const unitFieldId = await findUnitFieldId(token, unitFieldLabel);
-    if (!unitFieldId) {
-      return res.status(200).json({
-        configured: true,
-        error: `Campo personalizado "${unitFieldLabel}" não encontrado nas negociações do RD Station.`,
-        byUnit: {}, unmatched: {},
-      });
-    }
-
     const deals = await fetchDeals(token, start_date, end_date, wonStageMatch);
 
     const byUnit = {};
     const unmatched = {};
     for (const d of deals) {
       if (sourceMatch.length && !matchesAny(d.deal_source?.name, sourceMatch)) continue;
-      const rawUnit = extractUnitValue(d, unitFieldId);
+      const rawUnit = extractUnitValue(d);
       const unit = matchUnit(rawUnit, unitNames);
       if (unit) {
         byUnit[unit] = (byUnit[unit] || 0) + 1;
       } else {
-        const key = rawUnit || '(sem unidade preenchida)';
+        const key = rawUnit || '(sem campanha associada)';
         unmatched[key] = (unmatched[key] || 0) + 1;
       }
     }
