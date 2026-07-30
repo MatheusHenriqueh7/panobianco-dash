@@ -152,6 +152,9 @@ select option { background: var(--surface2); }
 
 /* CHARTS */
 .charts-row { display: grid; grid-template-columns: 1fr 300px; gap: 14px; margin-bottom: 20px; }
+.stat-tile { height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; }
+.stat-tile-val { font-family: var(--font-display); font-size: 48px; letter-spacing: 1px; line-height: 1; }
+.stat-tile-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; }
 .donut-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .donut-legend { width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .leg-item { display: flex; align-items: center; justify-content: space-between; }
@@ -1116,7 +1119,7 @@ function renderPerformance(el, dados) {
 
   el.innerHTML += funnelSection(dados);
 
-  el.innerHTML += chartsRow('CPL por unidade','Meta: R$ 13,00','Investimento');
+  el.innerHTML += chartsRow('CPL por unidade','Meta: R$ 13,00','Investimento', cplStatTile(dados));
 
   el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Performance por unidade</div><div class="chip">${dados.length} unidades</div></div>
   <div class="table-wrap"><table>
@@ -1147,7 +1150,7 @@ function renderPerformance(el, dados) {
   </div>`;
 
   requestAnimationFrame(() => {
-    drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
+    drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v, { metaValue: 13 });
     drawDonut(dados.map(d=>d.nome), dados.map(d=>d.gasto), v=>` R$ ${v.toFixed(0)}`, v=>'R$'+Math.round(v));
   });
 }
@@ -1252,7 +1255,7 @@ function renderLeads(el, dados) {
     ${kpiCard('🏆','Melhor unidade', melhor?melhor.nome:'—', melhor?'up':'neutral', melhor?`CPL R$ ${melhor.cpl.toFixed(2)}`:'sem leads')}
   </div>`;
 
-  el.innerHTML += chartsRow('CPL por unidade','Meta: R$ 13,00','Leads por unidade');
+  el.innerHTML += chartsRow('CPL por unidade','Meta: R$ 13,00','Leads por unidade', cplStatTile(dados));
 
   el.innerHTML += `<div class="card"><div class="card-hd"><div class="card-title">Geração de leads por unidade</div><div class="chip">${acima} acima da meta</div></div>
   <div class="table-wrap"><table>
@@ -1269,7 +1272,7 @@ function renderLeads(el, dados) {
   </table></div></div>`;
 
   requestAnimationFrame(() => {
-    drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
+    drawBar('barC', dados.map(d=>d.nome), dados.map(d=>d.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v, { metaValue: 13 });
     drawDonut(dados.map(d=>d.nome), dados.map(d=>d.leads), v=>` ${v} leads`, v=>v);
   });
 }
@@ -1363,7 +1366,7 @@ function renderConjuntos(el, dados) {
 
   requestAnimationFrame(() => {
     const top = [...comLeads].sort((a,b)=>a.cpl-b.cpl).slice(0,12);
-    drawBar('barC', top.map(a=>a.nome), top.map(a=>a.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v);
+    drawBar('barC', top.map(a=>a.nome), top.map(a=>a.cpl), cplBarColor, v=>` R$ ${v.toFixed(2)}`, v=>'R$'+v, { metaValue: 13 });
     const topGasto = [...todos].sort((a,b)=>b.gasto-a.gasto).slice(0,10);
     drawDonut(topGasto.map(a=>a.nome), topGasto.map(a=>a.gasto), v=>` R$ ${v.toFixed(0)}`, v=>'R$'+Math.round(v));
   });
@@ -1517,36 +1520,114 @@ function vazioInline(msg) {
 }
 
 // linha padrão com um gráfico de barras (esq.) e um donut (dir.)
-function chartsRow(barTitle, barChip, donutTitle) {
+// statTile (opcional): { value, label } — quando informado, substitui o canvas da barra por
+// um "número grande" (faz sentido quando só existe 1 unidade filtrada, ou seja, 1 barra só).
+function chartsRow(barTitle, barChip, donutTitle, statTile) {
+  const barCard = statTile
+    ? `<div class="stat-tile"><div class="stat-tile-val" style="color:${statTile.color || 'var(--orange)'}">${statTile.value}</div><div class="stat-tile-label">${statTile.label}</div></div>`
+    : `<div style="position:relative;height:240px"><canvas id="barC"></canvas></div>`;
   return `<div class="charts-row">
-    <div class="card"><div class="card-hd"><div class="card-title">${barTitle}</div>${barChip?`<div class="chip">${barChip}</div>`:''}</div><div style="position:relative;height:240px"><canvas id="barC"></canvas></div></div>
+    <div class="card"><div class="card-hd"><div class="card-title">${barTitle}</div>${barChip?`<div class="chip">${barChip}</div>`:''}</div>${barCard}</div>
     <div class="card"><div class="card-hd"><div class="card-title">${donutTitle}</div></div><div class="donut-wrap"><canvas id="donutC" width="150" height="150"></canvas><div class="donut-legend" id="donutLeg"></div></div></div>
   </div>`;
 }
 
-// cor de barra por faixa de CPL (verde/âmbar/vermelho)
+// cor de barra por faixa de CPL (verde/âmbar/vermelho) — cor sólida, sem borda separada
 function cplBarColor(v) {
-  if (v === 0) return { bg:'rgba(255,255,255,0.05)', bd:'rgba(255,255,255,0.1)' };
-  if (v <= 13) return { bg:'rgba(62,207,142,0.6)', bd:'#3ECF8E' };
-  if (v <= 17) return { bg:'rgba(245,166,35,0.6)', bd:'#F5A623' };
-  return { bg:'rgba(240,96,96,0.6)', bd:'#F06060' };
+  if (v === 0) return { bg:'rgba(255,255,255,0.14)', solid:'rgba(255,255,255,0.3)' };
+  if (v <= 13) return { bg:'#3ECF8E', solid:'#3ECF8E' };
+  if (v <= 17) return { bg:'#F5A623', solid:'#F5A623' };
+  return { bg:'#F06060', solid:'#F06060' };
 }
-function orangeBar() { return { bg:'rgba(255,107,0,0.55)', bd:'#FF6B00' }; }
+function orangeBar() { return { bg:'#FF6B00', solid:'#FF6B00' }; }
 
-function drawBar(canvasId, labels, data, colorFn, tipFmt, yFmt) {
+// Quando só há 1 unidade filtrada, um gráfico de barra com 1 barra é só um número —
+// monta o conteúdo do "stat tile" (CPL da unidade) usado no lugar do canvas nesse caso.
+function cplStatTile(dados) {
+  if (dados.length !== 1) return null;
+  const d = dados[0];
+  const cor = d.cpl > 0 ? cplBarColor(d.cpl).solid : 'var(--text-dim)';
+  return {
+    value: d.cpl > 0 ? `R$ ${d.cpl.toFixed(2)}` : '—',
+    label: `CPL médio — ${d.nome}`,
+    color: cor,
+  };
+}
+
+// Rótulo de valor na ponta de cada barra (ex: "R$ 6,30").
+const barValueLabelsPlugin = {
+  id: 'barValueLabels',
+  afterDatasetsDraw(chart, args, opts) {
+    if (!opts || !opts.formatter) return;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta || !meta.data.length) return;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    meta.data.forEach((bar, i) => {
+      const val = chart.data.datasets[0].data[i];
+      if (val === null || val === undefined) return;
+      const label = opts.formatter(val);
+      const fitsAbove = (bar.y - chartArea.top) >= 14;
+      ctx.fillStyle = fitsAbove ? (opts.color || '#ccc') : '#fff';
+      ctx.fillText(label, bar.x, fitsAbove ? bar.y - 6 : bar.y + 14);
+    });
+    ctx.restore();
+  }
+};
+Chart.register(barValueLabelsPlugin);
+
+// Linha de referência de meta (ex: "Meta R$ 13,00"), alinhada à escala real do eixo Y.
+const goalLinePlugin = {
+  id: 'goalLine',
+  afterDraw(chart, args, opts) {
+    if (!opts || opts.value == null) return;
+    const { ctx, chartArea, scales } = chart;
+    const y = scales.y.getPixelForValue(opts.value);
+    if (y < chartArea.top || y > chartArea.bottom) return;
+    ctx.save();
+    ctx.strokeStyle = opts.color || 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(chartArea.left, y);
+    ctx.lineTo(chartArea.right, y);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+Chart.register(goalLinePlugin);
+
+function drawBar(canvasId, labels, data, colorFn, tipFmt, yFmt, opts = {}) {
   const ctx = document.getElementById(canvasId)?.getContext('2d');
   if (!ctx) return;
   if (barChart) barChart.destroy();
   const cores = data.map(colorFn);
   barChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ data, backgroundColor: cores.map(c=>c.bg), borderColor: cores.map(c=>c.bd), borderWidth: 1, borderRadius: 4 }] },
+    data: { labels, datasets: [{
+      data,
+      backgroundColor: cores.map(c=>c.bg),
+      borderWidth: 0,
+      borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+      borderSkipped: false,
+      maxBarThickness: 24,
+      barPercentage: 0.9,
+      categoryPercentage: 0.94,
+    }] },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display:false }, tooltip: { callbacks: { label: c => tipFmt(c.raw) } } },
+      layout: { padding: { top: 18 } },
+      plugins: {
+        legend: { display:false },
+        tooltip: { callbacks: { label: c => tipFmt(c.raw) } },
+        barValueLabels: { formatter: v => tipFmt(v).trim(), color: '#aaa' },
+        goalLine: opts.metaValue != null ? { value: opts.metaValue, color: 'rgba(255,255,255,0.35)' } : { value: null },
+      },
       scales: {
-        x: { ticks: { color:'#888', font:{size:10}, maxRotation:45 }, grid: { color:'rgba(255,255,255,0.03)' } },
-        y: { ticks: { color:'#888', font:{size:10}, callback: yFmt }, grid: { color:'rgba(255,255,255,0.05)' } }
+        x: { ticks: { color:'#888', font:{size:10}, maxRotation:45 }, grid: { display:false } },
+        y: { beginAtZero: true, ticks: { color:'#888', font:{size:10}, callback: yFmt }, grid: { color:'rgba(255,255,255,0.08)', drawTicks:false } }
       }
     }
   });
