@@ -72,6 +72,7 @@ const UNIT_ALIASES = {
   'rio claro': 'Enxuto - Rio Claro',
   'vera cruz': 'VeraCruz',
   'jardim dona benta': 'Jd Dona Benta',
+  'campestre': 'Parque Prado', // unidade renomeada na conta Meta; campanhas antigas no RD ainda podem dizer "Campestre"
 };
 
 // Casa o nome da campanha (texto livre) com o nome canônico da unidade usado no Meta Ads.
