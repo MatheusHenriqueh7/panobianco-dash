@@ -66,6 +66,14 @@ function extractUnitValue(deal) {
   return (deal.campaign && deal.campaign.name) || null;
 }
 
+// Nome da campanha no RD Station às vezes diverge do nome cadastrado em UNIDADES (index.html)
+// — prefixo/abreviação/espaçamento diferentes. Mapeamento manual confirmado para esses casos.
+const UNIT_ALIASES = {
+  'rio claro': 'Enxuto - Rio Claro',
+  'vera cruz': 'VeraCruz',
+  'jardim dona benta': 'Jd Dona Benta',
+};
+
 // Casa o nome da campanha (texto livre) com o nome canônico da unidade usado no Meta Ads.
 function matchUnit(rawValue, unitNames) {
   const norm = normalize(rawValue);
@@ -76,7 +84,11 @@ function matchUnit(rawValue, unitNames) {
     const nu = normalize(u);
     return nu.length >= 4 && (norm.includes(nu) || nu.includes(norm));
   });
-  return partial || null;
+  if (partial) return partial;
+  for (const [alias, canonical] of Object.entries(UNIT_ALIASES)) {
+    if (norm.includes(alias) && unitNames.includes(canonical)) return canonical;
+  }
+  return null;
 }
 
 export default async function handler(req, res) {
