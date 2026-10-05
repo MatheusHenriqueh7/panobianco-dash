@@ -14,6 +14,15 @@
       "use": "@vercel/node"
     },
     {
+      "src": "api/relatorio-semanal.js",
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["shared/**"] }
+    },
+    {
+      "src": "shared/*.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     }
@@ -30,6 +39,14 @@
     {
       "src": "/api/rdstation",
       "dest": "/api/rdstation.js"
+    },
+    {
+      "src": "/api/relatorio-semanal",
+      "dest": "/api/relatorio-semanal.js"
+    },
+    {
+      "src": "/shared/(.*)",
+      "dest": "/shared/$1"
     },
     {
       "src": "/(.*)",

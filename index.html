@@ -346,6 +346,12 @@ tbody tr:hover { background: rgba(255,255,255,0.015); }
   /* font-size 16px evita zoom automático do Safari iOS */
   select { font-size: 16px !important; max-width: 100%; }
   #btnRefresh { min-height: 36px; padding: 0 12px; font-size: 12px; flex-shrink: 0; }
+  /* Relatório semanal continua acessível no celular: só o ícone na topbar, toolbar completa */
+  #btnRelatorio { display: flex; min-height: 36px; padding: 0 10px; flex-shrink: 0; }
+  #btnRelatorio .rel-btn-txt { display: none; }
+  .rel-toolbar .btn-ghost { display: flex; }
+  .rel-toolbar { padding: 10px 12px; gap: 6px; }
+  .rel-toolbar .btn { padding: 7px 10px; font-size: 12px; }
 
   /* KPI cards: 2 colunas no mobile */
   .kpi-grid { grid-template-columns: repeat(2,1fr) !important; }
@@ -505,6 +511,80 @@ body.present-mode #btnPresent::before { content: '✕ '; }
   .exec-cards-row { grid-template-columns: 1fr; }
   .last-update-chip { display: none !important; }
 }
+
+/* ── RELATÓRIO SEMANAL (folha clara, pensada para "Salvar como PDF") ── */
+.rel-overlay { position: fixed; inset: 0; z-index: 1000; background: #1c1c1c; display: flex; flex-direction: column; }
+.rel-overlay[hidden] { display: none; }
+/* Com o relatório aberto a dash fica oculta (já estava coberta): no celular isso também evita
+   que a largura da dash "estique" a tela do relatório. */
+body.rel-open > *:not(#relatorio) { display: none !important; }
+.rel-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.rel-toolbar-label { font-size: 13px; color: var(--text); font-weight: 500; padding: 0 6px; }
+.rel-spacer { flex: 1; }
+.rel-toolbar .btn:disabled { opacity: .35; cursor: default; }
+.rel-scroll { flex: 1; overflow: auto; padding: 24px 16px 48px; }
+.rel-paper {
+  --ink: #1a1a1a; --muted: #6b6b6b; --line: #e7e7e7; --soft: #f6f6f4; --good: #12804a; --bad: #c0392b;
+  background: #fff; color: var(--ink); width: 210mm; max-width: 100%; margin: 0 auto; padding: 14mm 13mm;
+  box-shadow: 0 10px 40px rgba(0,0,0,.45); font-family: var(--font-body); font-size: 12px; line-height: 1.45;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.rel-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding-bottom: 12px; border-bottom: 3px solid var(--orange); }
+.rel-brand { font-family: var(--font-display); font-size: 30px; letter-spacing: 3px; color: var(--orange); line-height: 1; }
+.rel-kicker { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; }
+.rel-period { text-align: right; }
+.rel-period strong { display: block; font-size: 16px; }
+.rel-period span { font-size: 10px; color: var(--muted); }
+.rel-h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1.8px; color: var(--muted); font-weight: 600; margin: 20px 0 8px; }
+.rel-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+.rel-kpi { background: var(--soft); border-radius: 8px; padding: 10px 12px; }
+.rel-kpi-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+.rel-kpi-val { font-family: var(--font-display); font-size: 28px; letter-spacing: .5px; line-height: 1.1; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.rel-kpi-val small { font-size: 15px; color: var(--muted); }
+.rel-kpi-var { font-size: 10.5px; color: var(--muted); }
+.rel-kpi-var .up-good, .rel-kpi-var .down-good { color: var(--good); font-weight: 600; }
+.rel-kpi-var .up-bad, .rel-kpi-var .down-bad { color: var(--bad); font-weight: 600; }
+.rel-destaques { margin: 0; padding-left: 18px; }
+.rel-destaques li { margin: 3px 0; }
+.rel-table-wrap { overflow-x: auto; }
+.rel-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rel-table th { font-size: 9.5px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); font-weight: 600; text-align: right; padding: 6px 6px; border-bottom: 1.5px solid var(--ink); white-space: nowrap; }
+.rel-table td { text-align: right; padding: 6px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rel-table th:nth-child(-n+2), .rel-table td:nth-child(-n+2) { text-align: left; }
+.rel-table td:first-child { color: var(--muted); width: 18px; }
+.rel-table td.rel-conv { font-weight: 700; }
+.rel-table tr { break-inside: avoid; }
+.rel-table tfoot td { font-weight: 700; border-top: 1.5px solid var(--ink); border-bottom: none; }
+.rel-na { color: var(--muted); font-style: italic; }
+.rel-notas { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 9.5px; color: var(--muted); }
+.rel-notas p { margin: 3px 0; }
+.rel-msg { padding: 60px 0; text-align: center; color: var(--muted); font-size: 13px; }
+@media (max-width: 768px) {
+  .rel-paper { padding: 18px 14px; }
+  .rel-kpis { grid-template-columns: repeat(2, 1fr); }
+  .rel-head { flex-direction: column; align-items: flex-start; }
+  .rel-period { text-align: left; }
+}
+@page { size: A4; margin: 10mm; }
+@media print {
+  html, body.rel-open { background: #fff !important; }
+  body.rel-open { display: block; min-height: 0; }
+  body.rel-open > *:not(#relatorio) { display: none !important; }
+  body.rel-open .rel-overlay { position: static; background: #fff; display: block; }
+  body.rel-open .rel-toolbar { display: none; }
+  body.rel-open .rel-scroll { overflow: visible; padding: 0; }
+  body.rel-open .rel-paper { width: auto; padding: 0; box-shadow: none; font-size: 10.5px; line-height: 1.35; }
+  /* Versão impressa compactada para caber numa folha A4 */
+  body.rel-open .rel-kpis { grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+  body.rel-open .rel-kpi { padding: 6px 10px; }
+  body.rel-open .rel-kpi-val { font-size: 22px; }
+  body.rel-open .rel-h2 { margin: 12px 0 5px; }
+  body.rel-open .rel-head { padding-bottom: 8px; }
+  body.rel-open .rel-brand { font-size: 26px; }
+  body.rel-open .rel-table td, body.rel-open .rel-table th { padding: 3.5px 5px; }
+  body.rel-open .rel-notas { margin-top: 10px; padding-top: 6px; font-size: 8.5px; }
+  body.rel-open .rel-notas p { margin: 2px 0; }
+}
 </style>
 </head>
 <body>
@@ -602,6 +682,7 @@ body.present-mode #btnPresent::before { content: '✕ '; }
         <div class="lud" id="lastUpdateDot"></div>
         <span id="lastUpdateText">—</span>
       </div>
+      <button class="btn btn-ghost" id="btnRelatorio" onclick="abrirRelatorio()" title="Relatório da última semana fechada (seg–dom) para salvar em PDF" aria-label="Relatório semanal">📄<span class="rel-btn-txt"> Relatório semanal</span></button>
       <button class="btn btn-ghost" id="btnPresent" onclick="togglePresentation()">⛶ Apresentar</button>
       <button class="btn" id="btnRefresh" onclick="fetchAll(true)">↻ Atualizar</button>
     </div>
@@ -609,6 +690,20 @@ body.present-mode #btnPresent::before { content: '✕ '; }
   <div class="content" id="content"></div>
 </main>
 
+<!-- RELATÓRIO SEMANAL — aberto pelo botão "📄 Relatório semanal" -->
+<div class="rel-overlay" id="relatorio" hidden>
+  <div class="rel-toolbar">
+    <button class="btn btn-ghost" id="relPrev" onclick="navegarSemana(1)">◀ Anterior</button>
+    <span class="rel-toolbar-label" id="relSemanaLabel"></span>
+    <button class="btn btn-ghost" id="relNext" onclick="navegarSemana(-1)">Próxima ▶</button>
+    <span class="rel-spacer"></span>
+    <button class="btn" id="relPdf" onclick="salvarRelatorioPdf()" disabled>⤓ Salvar PDF</button>
+    <button class="btn btn-ghost" onclick="fecharRelatorio()">✕ Fechar</button>
+  </div>
+  <div class="rel-scroll"><article class="rel-paper" id="relPaper"></article></div>
+</div>
+
+<script src="/shared/funil.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // CONFIGURAÇÃO
@@ -618,33 +713,9 @@ body.present-mode #btnPresent::before { content: '✕ '; }
 // Exemplo: https://panobianco-dash.vercel.app
 const VERCEL_URL = "https://panobianco-dash.vercel.app"; // ← PREENCHA APÓS FAZER O DEPLOY NO VERCEL
 
-const UNIDADES = [
-  { id: "461525510615687",   nome: "Rio Preto" },
-  { id: "926932954012010",   nome: "Saburo Akamine" },
-  { id: "960870287284943",   nome: "Enxuto - Rio Claro" },
-  { id: "960870997284872",   nome: "Marechal Tito" },
-  { id: "1339940072711294",  nome: "Jardim Paulista" },
-  { id: "1476215899083710",  nome: "Barra Bonita" },
-  { id: "1374018689303432",  nome: "Parque Prado" },
-  { id: "1534633956575237",  nome: "Pereira Barreto" },
-  { id: "1611727625532536",  nome: "Lorena" },
-  { id: "329817199287951",   nome: "Caxias RJ" },
-  { id: "642335825534761",   nome: "Votuporanga" },
-  { id: "25052320904357565", nome: "VeraCruz" },
-  { id: "24324838040468354", nome: "Curuça" },
-  { id: "342452664785881",   nome: "Jd Dona Benta" },
-  { id: "1719214925258407",  nome: "Campo Limpo" },
-  { id: "3522572947930191",  nome: "Vazame" },
-  { id: "600983156391131",   nome: "Rio Das Pedras" },
-  { id: "772882545216233",   nome: "Jardim Vilage" },
-  { id: "1294908258942748",  nome: "Vila Ipiranga" },
-  { id: "1153616979566102",  nome: "Condado" },
-  { id: "2384148928647338",  nome: "Mococa" },
-  { id: "225387132294461",   nome: "(sem nome)" },
-  { id: "1412461593941079",  nome: "Diário Ville" },
-  { id: "1040672539304717",  nome: "Ítalo Adami" },
-  { id: "1065013660203938",  nome: "Jamaica" },
-];
+// Unidades e regras do Funil de Conversão vêm de shared/funil.js — mesma fonte usada pelo
+// endpoint /api/relatorio-semanal. Unidade nova: adicionar lá, não aqui.
+const { UNIDADES, extrairAcao, insightsCampanhaEndpoint, agregarCampanhas, calcularFunil } = window.PANO_FUNIL;
 
 // Paleta contida e alinhada à marca (laranja + cinza + preto) — alterna entre os dois tons
 // e varia a luminosidade para gerar quantas cores forem necessárias sem virar arco-íris.
@@ -813,7 +884,8 @@ function updateLastUpdateChip() {
 // CONVERSÃO REAL (RD Station CRM) — matrículas atribuídas aos leads do Meta
 // ─────────────────────────────────────────────
 async function fetchConversoes(since, until) {
-  if (!RD_CONFIGURED) return { byUnit: {} };
+  // `falhou`: conversões indisponíveis (≠ zero matrículas) — usado pelo relatório semanal.
+  if (!RD_CONFIGURED) return { byUnit: {}, falhou: true };
   try {
     const units = UNIDADES.map(u => u.nome).join('|');
     const params = new URLSearchParams({
@@ -825,13 +897,13 @@ async function fetchConversoes(since, until) {
     const json = await r.json();
     if (!json.configured || json.error) {
       if (json.error) console.error('RD Station:', json.error);
-      return { byUnit: {} };
+      return { byUnit: {}, falhou: true };
     }
     if (json.truncated) console.warn('RD Station: período muito longo, conversões podem estar incompletas (paginação atingiu o limite de tempo/páginas).');
     return json;
   } catch (e) {
     console.error('RD Station:', e.message);
-    return { byUnit: {} };
+    return { byUnit: {}, falhou: true };
   }
 }
 
@@ -840,9 +912,8 @@ async function fetchConversoes(since, until) {
 function aplicarConversao(d, conv) {
   const byUnit = (conv && conv.byUnit) || {};
   const convertidos = byUnit[d.nome] || 0;
-  const taxaConv = d.leads > 0 ? (convertidos / d.leads) * 100 : 0;
-  const cac = convertidos > 0 ? d.gasto / convertidos : 0;
-  return { ...d, convertidos, taxaConv: +taxaConv.toFixed(2), cac: +cac.toFixed(2) };
+  const f = calcularFunil({ ...d, convertidos });
+  return { ...d, convertidos, taxaConv: +(f.taxaConv || 0).toFixed(2), cac: +(f.cac || 0).toFixed(2) };
 }
 
 async function fetchPrevPeriod() {
@@ -892,34 +963,15 @@ function getPrevSum(field) {
 async function fetchUnidade(u, since, until) {
   const vazio = { id: u.id, nome: u.nome, gasto:0, gastoLeads:0, leads:0, cpl:0, visitas:0, cpv:0, impressoes:0, cliques:0, ctr:0, daily:[], adsets:[], melhorAdset:'—', adsetLeads:0, adsetCpl:0, adsetGasto:0, status:'a' };
   try {
-    const timeRange = JSON.stringify({ since, until });
-    const fields = "spend,actions,impressions,clicks";
-    const endpoint = `act_${u.id}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=campaign`;
-
     const [res, adsets, daily] = await Promise.all([
-      apiCall(endpoint),
+      apiCall(insightsCampanhaEndpoint(u.id, since, until)),
       fetchAdsets(u.id, since, until),
       fetchDaily(u.id, since, until),
     ]);
 
-    // Agrega por campanha: gasto de leads separado do gasto de branding
-    const campanhas = res.data || [];
-    let gasto = 0, gastoLeads = 0, leads = 0, visitas = 0, impressoes = 0, cliques = 0;
-    for (const c of campanhas) {
-      const g = parseFloat(c.spend || 0);
-      const l = extrairAcao(c.actions, ['lead']);
-      // Considera campanha de leads se tiver 'lead' OU 'onsite_conversion.lead_grouped'
-      // (não soma os dois para evitar double-count — usa só 'lead' para o número de leads)
-      const isLeadCamp = l > 0 || extrairAcao(c.actions, ['onsite_conversion.lead_grouped']) > 0;
-      const v = extrairAcao(c.actions, ['instagram_profile_visit']);
-      gasto += g;
-      leads += l;
-      visitas += v;
-      impressoes += parseInt(c.impressions || 0);
-      cliques += parseInt(c.clicks || 0);
-      if (isLeadCamp) gastoLeads += g;
-    }
-    const cpl = leads > 0 ? gastoLeads / leads : 0;
+    // Agrega por campanha: gasto de leads separado do gasto de branding (regra em shared/funil.js)
+    const { gasto, gastoLeads, leads, visitas, impressoes, cliques } = agregarCampanhas(res.data);
+    const cpl = calcularFunil({ gasto, gastoLeads, leads }).cpl || 0;
     const cpv = visitas > 0 ? gasto / visitas : 0;
     const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
 
@@ -979,11 +1031,6 @@ function melhorAdset(adsets) {
     if (a.leads > 0 && a.cpl < minCpl) { minCpl = a.cpl; best = a; }
   }
   return best;
-}
-
-function extrairAcao(actions, tipos) {
-  if (!actions) return 0;
-  return actions.filter(a => tipos.includes(a.action_type)).reduce((s,a) => s + parseInt(a.value || 0), 0);
 }
 
 // Retorna o custo por ação de um tipo específico dentro do array cost_per_action_type
@@ -1047,6 +1094,7 @@ function togglePresentation() {
 }
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (relatorioAberto()) { if (e.key === 'Escape') fecharRelatorio(); return; }
   if (e.key === 'f' || e.key === 'F') togglePresentation();
 });
 
@@ -1238,9 +1286,8 @@ function cacCell(d) {
 // ── FUNIL DE CONVERSÃO: Investimento → Leads → Convertidos ──
 function funnelSection(dados) {
   const tG = sum(dados,'gasto'), tL = sum(dados,'leads'), tConv = sum(dados,'convertidos');
-  const cplM = tL > 0 ? sum(dados,'gastoLeads')/tL : 0;
-  const convPct = tL > 0 ? (tConv/tL)*100 : 0;
-  const cacM = tConv > 0 ? tG/tConv : 0;
+  const f = calcularFunil({ gasto: tG, gastoLeads: sum(dados,'gastoLeads'), leads: tL, convertidos: tConv });
+  const cplM = f.cpl || 0, convPct = f.taxaConv || 0, cacM = f.cac || 0;
 
   return `<div class="card funnel-card">
     <div class="card-hd"><div class="card-title">Funil de Conversão</div><div class="chip">Investimento → Leads → Convertidos</div></div>
@@ -1828,6 +1875,210 @@ function aplicarPeriodoPersonalizado() {
 }
 
 function clearCache() { for (const k in cache) delete cache[k]; }
+
+// ─────────────────────────────────────────────
+// RELATÓRIO SEMANAL — semana fechada (seg–dom, fuso de São Paulo), para salvar em PDF e
+// encaminhar aos líderes. Usa as mesmas regras do Funil (shared/funil.js) e as mesmas chamadas
+// da dash (apiCall / fetchConversoes), comparando com a semana imediatamente anterior.
+// ─────────────────────────────────────────────
+let relOffset = 0;      // 0 = última semana fechada; 1 = a anterior a ela; ...
+let relAtual = null;    // dados da semana exibida (usado no nome do PDF)
+const relCache = {};
+
+function hojeSaoPaulo() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+function addDiasISO(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+function semanaFechada(offset) {
+  const hoje = hojeSaoPaulo();
+  const [y, m, d] = hoje.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = domingo
+  const domingo = addDiasISO(hoje, -(dow === 0 ? 7 : dow) - 7 * offset);
+  return { since: addDiasISO(domingo, -6), until: domingo };
+}
+function dataBR(iso, comAno = true) { const [y, m, d] = iso.split('-'); return comAno ? `${d}/${m}/${y}` : `${d}/${m}`; }
+function brl(v) { return v == null ? '—' : 'R$ ' + fmt(v); }
+function relPct(v) { return v == null ? '—' : v.toFixed(1).replace('.', ',') + '%'; }
+
+async function buscarSemanaRelatorio({ since, until }) {
+  const key = `${since}_${until}`;
+  if (relCache[key]) return relCache[key];
+  const [meta, conv] = await Promise.all([
+    mapLimit(UNIDADES, 5, async u => {
+      try {
+        const r = await apiCall(insightsCampanhaEndpoint(u.id, since, until));
+        return { nome: u.nome, ...agregarCampanhas(r.data) };
+      } catch (e) {
+        return { nome: u.nome, erroMeta: e.message };
+      }
+    }),
+    fetchConversoes(since, until),
+  ]);
+  const rdOk = !conv.falhou;
+  const linhas = meta.map(m => {
+    const convertidos = rdOk ? (conv.byUnit[m.nome] || 0) : null;
+    const f = m.erroMeta ? { cpl: null, taxaConv: null, cac: null } : calcularFunil({ ...m, convertidos });
+    return { ...m, convertidos, ...f };
+  });
+  // Totais de custo/taxa só com unidades que têm dado do Meta — senão as matrículas de uma
+  // unidade sem gasto conhecido baixariam artificialmente o custo por matrícula geral.
+  const comMeta = linhas.filter(l => !l.erroMeta);
+  const base = { gasto: sum(comMeta, 'gasto'), gastoLeads: sum(comMeta, 'gastoLeads'), leads: sum(comMeta, 'leads'), convertidos: rdOk ? sum(comMeta, 'convertidos') : null };
+  const tot = { ...base, ...calcularFunil(base), convertidosTodos: rdOk ? sum(linhas, 'convertidos') : null };
+  const dados = { since, until, linhas, tot, rdOk, rdIncompleto: !!conv.truncated };
+  relCache[key] = dados;
+  return dados;
+}
+
+function relatorioAberto() { return !document.getElementById('relatorio').hidden; }
+
+function abrirRelatorio() {
+  relOffset = 0;
+  document.getElementById('relatorio').hidden = false;
+  document.body.classList.add('rel-open');
+  carregarRelatorio();
+}
+function fecharRelatorio() {
+  document.getElementById('relatorio').hidden = true;
+  document.body.classList.remove('rel-open');
+}
+function navegarSemana(delta) {
+  relOffset = Math.max(0, relOffset + delta);
+  carregarRelatorio();
+}
+
+async function carregarRelatorio() {
+  const sem = semanaFechada(relOffset);
+  const offsetPedido = relOffset;
+  const paper = document.getElementById('relPaper');
+  const btnPdf = document.getElementById('relPdf');
+  document.getElementById('relSemanaLabel').textContent = `${dataBR(sem.since, false)} a ${dataBR(sem.until)}`;
+  document.getElementById('relNext').disabled = relOffset === 0;
+  btnPdf.disabled = true;
+  relAtual = null;
+
+  if (DEMO) {
+    paper.innerHTML = `<div class="rel-msg">O relatório semanal usa dados reais do Meta e do RD Station e não está disponível no modo demonstração.</div>`;
+    return;
+  }
+  paper.innerHTML = `<div class="rel-msg">Carregando a semana de ${dataBR(sem.since)} a ${dataBR(sem.until)}…</div>`;
+  try {
+    const [atual, anterior] = await Promise.all([
+      buscarSemanaRelatorio(sem),
+      buscarSemanaRelatorio(semanaFechada(relOffset + 1)),
+    ]);
+    if (offsetPedido !== relOffset || !relatorioAberto()) return; // usuário trocou de semana no meio
+    paper.innerHTML = renderRelatorio(atual, anterior);
+    relAtual = atual;
+    btnPdf.disabled = false;
+  } catch (e) {
+    console.error('Relatório semanal:', e);
+    paper.innerHTML = `<div class="rel-msg">Não foi possível montar o relatório: ${e.message}</div>`;
+  }
+}
+
+// Variação vs semana anterior. `bomQuandoSobe`: true (leads), false (CPL, custo), null (neutro).
+// `emPontos`: para métricas que já são % (taxa de conversão) — mostra a diferença em p.p.
+function relVar(cur, prev, bomQuandoSobe, emPontos = false) {
+  if (cur == null || prev == null || (!emPontos && prev === 0)) return '<span>sem base de comparação</span>';
+  const d = emPontos ? cur - prev : ((cur - prev) / prev) * 100;
+  if (Math.abs(d) < (emPontos ? 0.05 : 0.5)) return '<span>estável vs semana anterior</span>';
+  const sobe = d > 0;
+  const cls = bomQuandoSobe == null ? '' : (sobe === bomQuandoSobe ? (sobe ? 'up-good' : 'down-good') : (sobe ? 'up-bad' : 'down-bad'));
+  const valor = emPontos ? `${Math.abs(d).toFixed(1).replace('.', ',')} p.p.` : `${Math.abs(d).toFixed(0)}%`;
+  return `<span class="${cls}">${sobe ? '▲' : '▼'} ${valor}</span> vs semana anterior`;
+}
+
+function renderRelatorio(r, ant) {
+  const t = r.tot, ta = ant.tot;
+  const semMeta = r.linhas.filter(l => l.erroMeta);
+  const ativas = r.linhas.filter(l => !l.erroMeta && (l.gasto > 0 || l.leads > 0 || l.convertidos > 0));
+  const inativas = r.linhas.filter(l => !l.erroMeta && !ativas.includes(l));
+  const linhas = [...ativas, ...semMeta].sort((a, b) => (b.convertidos || 0) - (a.convertidos || 0) || (b.leads || 0) - (a.leads || 0) || (b.gasto || 0) - (a.gasto || 0));
+  const geradoEm = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // Destaques automáticos
+  const destaques = [];
+  if (r.rdOk) {
+    const comConv = ativas.filter(l => l.convertidos > 0);
+    const topConv = [...comConv].sort((a, b) => b.convertidos - a.convertidos)[0];
+    if (topConv) destaques.push(`<strong>Mais matrículas:</strong> ${topConv.nome} (${topConv.convertidos})`);
+    const topCac = [...comConv].sort((a, b) => a.cac - b.cac)[0];
+    if (topCac) destaques.push(`<strong>Menor custo por matrícula:</strong> ${topCac.nome} (${brl(topCac.cac)})`);
+    const topTaxa = ativas.filter(l => l.leads >= 10 && l.taxaConv != null).sort((a, b) => b.taxaConv - a.taxaConv)[0];
+    if (topTaxa && topTaxa.taxaConv > 0) destaques.push(`<strong>Maior taxa de conversão</strong> (mín. 10 leads): ${topTaxa.nome} (${relPct(topTaxa.taxaConv)} — ${topTaxa.convertidos} de ${topTaxa.leads} leads)`);
+    const semVenda = ativas.filter(l => l.gasto > 0 && l.convertidos === 0).sort((a, b) => b.gasto - a.gasto);
+    if (semVenda.length) destaques.push(`<strong>Investimento sem matrícula na semana:</strong> ${semVenda.map(l => `${l.nome} (${brl(l.gasto)})`).join(', ')} — total ${brl(sum(semVenda, 'gasto'))}`);
+  } else {
+    destaques.push('<strong>Matrículas indisponíveis:</strong> o RD Station não respondeu ao gerar este relatório. Investimento e leads estão completos; gere novamente mais tarde para incluir as matrículas.');
+  }
+  const topCpl = ativas.filter(l => l.leads > 0).sort((a, b) => a.cpl - b.cpl)[0];
+  if (topCpl) destaques.push(`<strong>Menor custo por lead:</strong> ${topCpl.nome} (${brl(topCpl.cpl)})`);
+
+  const kpi = (label, val, varHtml) => `<div class="rel-kpi"><div class="rel-kpi-label">${label}</div><div class="rel-kpi-val">${val}</div><div class="rel-kpi-var">${varHtml}</div></div>`;
+  const moeda = v => v == null ? '—' : `<small>R$</small> ${fmt(v)}`;
+  const convKpi = t.convertidosTodos == null ? '—' : t.convertidosTodos;
+  const ast = semMeta.length ? '*' : ''; // taxa e custo gerais excluem unidades sem dado do Meta
+
+  const tr = (l, i) => l.erroMeta
+    ? `<tr><td>${i + 1}</td><td>${l.nome}*</td><td class="rel-na" colspan="3">dados de anúncio indisponíveis</td><td class="rel-conv">${l.convertidos ?? '—'}</td><td class="rel-na">—</td><td class="rel-na">—</td></tr>`
+    : `<tr><td>${i + 1}</td><td>${l.nome}</td><td>${brl(l.gasto)}</td><td>${l.leads}</td><td>${brl(l.cpl)}</td><td class="rel-conv">${l.convertidos ?? '—'}</td><td>${relPct(l.taxaConv)}</td><td>${brl(l.cac)}</td></tr>`;
+
+  const notas = [
+    '<strong>Matrícula</strong> = negociação ganha no RD Station, com origem em anúncio pago (Facebook Ads / Busca Paga) e data de ganho dentro da semana. Uma matrícula da semana pode vir de um lead gerado em semanas anteriores, então a taxa de conversão é uma aproximação.',
+    '<strong>CPL</strong> = investimento em campanhas de geração de leads ÷ leads. <strong>Custo por matrícula</strong> = investimento total ÷ matrículas.',
+  ];
+  if (semMeta.length) notas.push(`* ${semMeta.map(l => l.nome).join(', ')}: a conta de anúncio não está acessível pela integração (falta acesso no Business Manager). As matrículas aparecem (e entram no total de matrículas), mas investimento e leads não — por isso a taxa de conversão e o custo por matrícula gerais são calculados sem essas unidades.`);
+  if (inativas.length) notas.push(`Sem investimento, leads ou matrículas na semana: ${inativas.map(l => l.nome).join(', ')}.`);
+  if (r.rdIncompleto) notas.push('Atenção: a consulta ao RD Station não terminou a tempo — o número de matrículas pode estar subcontado.');
+
+  return `
+    <header class="rel-head">
+      <div>
+        <div class="rel-brand">PANOBIANCO</div>
+        <div class="rel-kicker">Relatório semanal · Meta Ads × Matrículas</div>
+      </div>
+      <div class="rel-period">
+        <strong>${dataBR(r.since, false)} a ${dataBR(r.until)}</strong>
+        <span>Semana de segunda a domingo · gerado em ${geradoEm}</span>
+      </div>
+    </header>
+
+    <section class="rel-kpis">
+      ${kpi('Investimento', moeda(t.gasto), relVar(t.gasto, ta.gasto, null))}
+      ${kpi('Leads', t.leads, relVar(t.leads, ta.leads, true))}
+      ${kpi('Custo por lead', moeda(t.cpl), relVar(t.cpl, ta.cpl, false))}
+      ${kpi('Matrículas', convKpi, relVar(t.convertidosTodos, ta.convertidosTodos, true))}
+      ${kpi('Taxa de conversão' + ast, relPct(t.taxaConv), relVar(t.taxaConv, ta.taxaConv, true, true))}
+      ${kpi('Custo por matrícula' + ast, moeda(t.cac), relVar(t.cac, ta.cac, false))}
+    </section>
+
+    <div class="rel-h2">Destaques da semana</div>
+    <ul class="rel-destaques">${destaques.map(d => `<li>${d}</li>`).join('')}</ul>
+
+    <div class="rel-h2">Resultado por unidade</div>
+    <div class="rel-table-wrap">
+      <table class="rel-table">
+        <thead><tr><th></th><th>Unidade</th><th>Investimento</th><th>Leads</th><th>CPL</th><th>Matrículas</th><th>Conversão</th><th>Custo/matrícula</th></tr></thead>
+        <tbody>${linhas.map(tr).join('')}</tbody>
+        <tfoot><tr><td></td><td>Total</td><td>${brl(t.gasto)}</td><td>${t.leads}</td><td>${brl(t.cpl)}</td><td class="rel-conv">${convKpi}</td><td>${relPct(t.taxaConv)}${t.taxaConv != null ? ast : ''}</td><td>${brl(t.cac)}${t.cac != null ? ast : ''}</td></tr></tfoot>
+      </table>
+    </div>
+
+    <footer class="rel-notas">${notas.map(n => `<p>${n}</p>`).join('')}</footer>`;
+}
+
+function salvarRelatorioPdf() {
+  if (!relAtual) return;
+  const tituloOriginal = document.title;
+  // O título vira o nome sugerido do arquivo ao "Salvar como PDF".
+  document.title = `Relatorio semanal Panobianco ${relAtual.since} a ${relAtual.until}`;
+  window.addEventListener('afterprint', () => { document.title = tituloOriginal; }, { once: true });
+  window.print();
+}
 
 // ─────────────────────────────────────────────
 // INIT

@@ -84,6 +84,43 @@ segue funcionando normalmente com os dados do Meta.
 > conhecida ficam agrupadas em `unmatched` na resposta de `/api/rdstation` — útil para depurar
 > nomes de campanha divergentes sem perder o dado.
 
+### `REPORT_KEY` (opcional — habilita `/api/relatorio-semanal`)
+
+Chave secreta exigida pelo endpoint de relatório. Sem ela configurada, o endpoint responde
+sempre `401`. Use um valor longo e aleatório (ex: gerado com `openssl rand -hex 32`).
+
+## Relatório semanal para os líderes (botão "📄 Relatório semanal")
+
+Na barra superior da dash. Abre o relatório da **última semana fechada (segunda a domingo,
+fuso de São Paulo)** numa folha A4: investimento, leads, CPL, matrículas, taxa de conversão e
+custo por matrícula (com variação vs semana anterior), destaques automáticos e a tabela por
+unidade. "◀ Anterior" navega para semanas passadas; "⤓ Salvar PDF" abre a impressão do
+navegador — escolha "Salvar como PDF" e encaminhe o arquivo. Usa as mesmas regras do Funil
+(`shared/funil.js`) e as mesmas rotas da dash (`/api/meta`, `/api/rdstation`).
+
+## Endpoint JSON (`GET /api/relatorio-semanal`)
+
+Endpoint somente-leitura com o Funil de Conversão por unidade, em JSON:
+
+```
+GET /api/relatorio-semanal?key=<REPORT_KEY>            → últimos 7 dias completos até ontem (America/Sao_Paulo)
+GET /api/relatorio-semanal?key=<REPORT_KEY>&dias=30    → últimos 30 dias completos até ontem (1 a 90)
+```
+
+Usa exatamente as mesmas regras da dash — nada é reimplementado:
+
+- `shared/funil.js` — lista de unidades, agregação das campanhas do Meta (gasto de leads × branding)
+  e fórmulas CPL / taxa de conversão / custo por venda. **Carregado também pelo `index.html`**:
+  unidade nova se adiciona lá.
+- `api/_lib/metaTokens.js` + `api/_lib/metaGraph.js` — descoberta conta → token e chamada à Graph API.
+- `api/_lib/rdDeals.js` — matrículas no RD Station (mesmas variáveis `RD_STATION_*` da dash).
+
+Campos por unidade: `gasto`, `leads`, `cpl`, `convertidos`, `taxa_conversao` (em %),
+`custo_por_venda`. Ordenado por `convertidos`. Também traz `totais`, `periodo`,
+`rd.sem_unidade_identificada` (negociações pagas que não casaram com nenhuma unidade) e
+`rd.criterio_convertido` (fonte/etapa efetivamente aplicadas). Se o RD falhar, Meta continua
+vindo e `rd_erro` explica; unidade sem dado do Meta vem com `meta_erro` e métricas `null`.
+
 ## Rodando localmente
 
 O dashboard é HTML+JS puro; para uma prévia rápida (sem as funções serverless, ou seja, sempre
