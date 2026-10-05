@@ -14,7 +14,7 @@
 
 import { timingSafeEqual } from 'node:crypto';
 import funil from '../shared/funil.js';
-import { getTokenMap } from './_lib/metaTokens.js';
+import { getTokenMap, resolveToken } from './_lib/metaTokens.js';
 import { graphGet } from './_lib/metaGraph.js';
 import { loadRdConfig, fetchDeals, countDealsByUnit, mapLimit } from './_lib/rdDeals.js';
 
@@ -53,7 +53,7 @@ async function buscarMeta(since, until) {
 
   const porUnidade = {};
   await mapLimit(UNIDADES, META_CONCURRENCY, async (u) => {
-    const token = tokenMap[u.id];
+    const token = await resolveToken(u.id);
     if (!token) {
       porUnidade[u.nome] = { erro: `Nenhum dos tokens configurados enxerga a conta act_${u.id}.` };
       return;
@@ -125,12 +125,14 @@ export default async function handler(req, res) {
     const metaOk = !m.erro;
     // Sem dado do Meta a unidade fica com gasto/leads null (não 0): senão o custo por venda
     // sairia 0 para uma unidade que teve matrículas mas cujo gasto não pôde ser lido.
-    const gasto = metaOk ? m.gasto : null, gastoLeads = metaOk ? m.gastoLeads : null, leads = metaOk ? m.leads : null;
+    // `gasto` = só campanhas de leads (base de CPL e custo por venda); visitas ao perfil à parte.
+    const gastoLeads = metaOk ? m.gastoLeads : null, leads = metaOk ? m.leads : null;
     const convertidos = rdOk ? (rd.byUnit[u.nome] || 0) : null;
-    const f = metaOk ? calcularFunil({ gasto, gastoLeads, leads, convertidos }) : { cpl: null, taxaConv: null, cac: null };
+    const f = metaOk ? calcularFunil({ gastoLeads, leads, convertidos }) : { cpl: null, taxaConv: null, cac: null };
     const linha = {
       unidade: u.nome,
-      gasto: round2(gasto),
+      gasto: round2(gastoLeads),
+      gasto_visitas_perfil: metaOk ? round2(m.gastoPerfil) : null,
       leads,
       cpl: round2(f.cpl),
       convertidos,
@@ -148,7 +150,7 @@ export default async function handler(req, res) {
   // da dash): matrículas de uma unidade sem gasto conhecido baixariam o custo por venda geral.
   const comMeta = unidades.filter(l => !l.meta_erro);
   const tot = {
-    gasto: Object.values(meta.porUnidade).reduce((s, m) => s + (m.gasto || 0), 0),
+    gastoPerfil: Object.values(meta.porUnidade).reduce((s, m) => s + (m.gastoPerfil || 0), 0),
     gastoLeads: Object.values(meta.porUnidade).reduce((s, m) => s + (m.gastoLeads || 0), 0),
     leads: comMeta.reduce((s, l) => s + l.leads, 0),
     convertidos: rdOk ? comMeta.reduce((s, l) => s + l.convertidos, 0) : null,
@@ -169,14 +171,21 @@ export default async function handler(req, res) {
     gerado_em: new Date().toISOString(),
     unidades,
     totais: {
-      gasto: round2(tot.gasto),
+      gasto: round2(tot.gastoLeads),
+      gasto_visitas_perfil: round2(tot.gastoPerfil),
       leads: tot.leads,
       cpl: round2(ft.cpl),
       convertidos: convertidosTodas,
       taxa_conversao: round2(ft.taxaConv),
       custo_por_venda: round2(ft.cac),
     },
-    unidades_medida: { taxa_conversao: '% (convertidos / leads × 100)', gasto: 'R$', cpl: 'R$ (gasto em campanhas de leads / leads)', custo_por_venda: 'R$ (gasto total / convertidos)' },
+    unidades_medida: {
+      gasto: 'R$ — só campanhas de geração de leads (objetivo Leads)',
+      gasto_visitas_perfil: 'R$ — campanhas de visitas ao perfil do Instagram; fora de CPL e custo por venda',
+      cpl: 'R$ (gasto / leads)',
+      taxa_conversao: '% (convertidos / leads × 100)',
+      custo_por_venda: 'R$ (gasto / convertidos)',
+    },
     rd: {
       criterio_convertido: rd.criterio,
       sem_unidade_identificada: semUnidade,

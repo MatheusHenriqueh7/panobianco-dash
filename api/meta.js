@@ -5,7 +5,7 @@
 // token enxerga (ver api/_lib/metaTokens.js) — não é preciso mapear conta por conta manualmente.
 // O token nunca é aceito via query string do frontend e nunca aparece na resposta desta rota.
 
-import { getTokenMap } from './_lib/metaTokens.js';
+import { getTokenMap, resolveToken } from './_lib/metaTokens.js';
 import { graphGet } from './_lib/metaGraph.js';
 
 // Extrai o ID da conta de anúncio (act_123456) do início do endpoint solicitado.
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'endpoint_invalido', message: 'Endpoint deve começar com act_<id_da_conta>.' });
   }
 
-  const token = tokenMap[accountId];
+  const token = await resolveToken(accountId);
   if (!token) {
     // Erro isolado: só esta conta fica sem dados, as demais chamadas continuam normalmente.
     return res.status(404).json({ error: 'token_nao_configurado', message: `Nenhum dos tokens configurados enxerga a conta act_${accountId}.`, accountId });

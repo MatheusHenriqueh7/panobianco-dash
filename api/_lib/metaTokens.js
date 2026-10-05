@@ -8,6 +8,8 @@
 // e montamos o mapa conta → token automaticamente. O resultado fica em cache (1h) por instância
 // da function, com deduplicação de descobertas concorrentes.
 
+import funil from '../../shared/funil.js';
+
 const GRAPH_VERSION = 'v19.0';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora
 
@@ -97,4 +99,46 @@ async function getTokenMap() {
   return map;
 }
 
-export { getTokenMap, loadTokenList };
+// ── Fallback por sondagem ──
+// /me/adaccounts lista só as contas ATRIBUÍDAS diretamente ao usuário do sistema. Uma conta
+// acessível por outro caminho (ex: acesso herdado da própria BM) não aparece ali, mas o token
+// consegue lê-la — caso real da Parque Prado (antiga Campestre). Para essas, testamos cada token
+// direto na conta. Só para contas cadastradas em shared/funil.js, para que o proxy público
+// (/api/meta) não vire um jeito de disparar sondagens com IDs arbitrários.
+const UNIDADE_IDS = new Set(funil.UNIDADES.map(u => u.id));
+const probeCache = {};     // { [accountId]: { token | null, at } }
+const probeInFlight = {};  // { [accountId]: Promise }
+
+async function probeAccount(accountId, tokens) {
+  for (const token of tokens) {
+    try {
+      const r = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/act_${accountId}?fields=id&access_token=${encodeURIComponent(token)}`);
+      const json = await r.json();
+      if (!json.error) return token;
+    } catch (e) {
+      console.error(`Sondagem da conta act_${accountId}: erro de rede — ${e.message}`);
+    }
+  }
+  return null;
+}
+
+// Token que enxerga a conta: primeiro pelo mapa descoberto, depois por sondagem (com cache de 1h,
+// inclusive negativo). Retorna null se nenhum token enxergar a conta.
+async function resolveToken(accountId) {
+  const map = await getTokenMap();
+  if (!map) return null;
+  if (map[accountId]) return map[accountId];
+  if (!UNIDADE_IDS.has(accountId)) return null;
+
+  const cached = probeCache[accountId];
+  if (cached && (Date.now() - cached.at) < CACHE_TTL_MS) return cached.token;
+
+  if (!probeInFlight[accountId]) {
+    probeInFlight[accountId] = probeAccount(accountId, loadTokenList() || [])
+      .then(token => { probeCache[accountId] = { token, at: Date.now() }; return token; })
+      .finally(() => { delete probeInFlight[accountId]; });
+  }
+  return probeInFlight[accountId];
+}
+
+export { getTokenMap, loadTokenList, resolveToken };

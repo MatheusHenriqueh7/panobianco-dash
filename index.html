@@ -715,7 +715,7 @@ const VERCEL_URL = "https://panobianco-dash.vercel.app"; // ← PREENCHA APÓS F
 
 // Unidades e regras do Funil de Conversão vêm de shared/funil.js — mesma fonte usada pelo
 // endpoint /api/relatorio-semanal. Unidade nova: adicionar lá, não aqui.
-const { UNIDADES, extrairAcao, insightsCampanhaEndpoint, agregarCampanhas, calcularFunil } = window.PANO_FUNIL;
+const { UNIDADES, extrairAcao, insightsCampanhaEndpoint, ehCampanhaDeLeads, agregarCampanhas, calcularFunil } = window.PANO_FUNIL;
 
 // Paleta contida e alinhada à marca (laranja + cinza + preto) — alterna entre os dois tons
 // e varia a luminosidade para gerar quantas cores forem necessárias sem virar arco-íris.
@@ -969,10 +969,10 @@ async function fetchUnidade(u, since, until) {
       fetchDaily(u.id, since, until),
     ]);
 
-    // Agrega por campanha: gasto de leads separado do gasto de branding (regra em shared/funil.js)
-    const { gasto, gastoLeads, leads, visitas, impressoes, cliques } = agregarCampanhas(res.data);
-    const cpl = calcularFunil({ gasto, gastoLeads, leads }).cpl || 0;
-    const cpv = visitas > 0 ? gasto / visitas : 0;
+    // Agrega por campanha: gasto de leads separado do gasto de visitas ao perfil (regra em shared/funil.js)
+    const { gasto, gastoLeads, gastoPerfil, leads, visitas, impressoes, cliques } = agregarCampanhas(res.data);
+    const cpl = calcularFunil({ gastoLeads, leads }).cpl || 0;
+    const cpv = visitas > 0 ? gastoPerfil / visitas : 0;
     const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
 
     const best = melhorAdset(adsets);
@@ -998,29 +998,29 @@ async function fetchUnidade(u, since, until) {
 async function fetchAdsets(accId, since, until) {
   try {
     const timeRange = JSON.stringify({ since, until });
-    const endpoint = `act_${accId}/adsets?fields=name,insights.time_range(${encodeURIComponent(timeRange)}){spend,actions}&limit=100`;
+    const endpoint = `act_${accId}/adsets?fields=name,campaign{objective},insights.time_range(${encodeURIComponent(timeRange)}){spend,actions}&limit=100`;
     const res = await apiCall(endpoint);
     return (res.data || []).map(a => {
       const ins = a.insights?.data?.[0];
       const g = ins ? parseFloat(ins.spend || 0) : 0;
       const l = ins ? extrairAcao(ins.actions, ['lead']) : 0;
-      return { nome: a.name, gasto: +g.toFixed(2), leads: l, cpl: l > 0 ? +(g / l).toFixed(2) : 0 };
+      const ehLeads = ehCampanhaDeLeads(a.campaign?.objective, ins?.actions);
+      return { nome: a.name, gasto: +g.toFixed(2), leads: l, cpl: l > 0 ? +(g / l).toFixed(2) : 0, ehLeads };
     }).filter(a => a.gasto > 0 || a.leads > 0);
   } catch { return []; }
 }
 
-// Série diária leve (nível de conta, sem quebra por campanha) — só alimenta os sparklines dos KPIs.
+// Série diária — só alimenta os sparklines dos KPIs. Em nível de CAMPANHA (por dia) para usar a
+// mesma agregação do funil: gasto de leads separado e visitas ao perfil (que só vêm por campanha).
 async function fetchDaily(accId, since, until) {
   try {
-    const timeRange = JSON.stringify({ since, until });
-    const endpoint = `act_${accId}/insights?fields=spend,actions&time_range=${encodeURIComponent(timeRange)}&time_increment=1&level=account`;
-    const res = await apiCall(endpoint);
-    return (res.data || []).map(r => ({
-      date: r.date_start,
-      gasto: parseFloat(r.spend || 0),
-      leads: extrairAcao(r.actions, ['lead']),
-      visitas: extrairAcao(r.actions, ['instagram_profile_visit']),
-    }));
+    const res = await apiCall(insightsCampanhaEndpoint(accId, since, until) + '&time_increment=1');
+    const porDia = {};
+    for (const r of (res.data || [])) (porDia[r.date_start] = porDia[r.date_start] || []).push(r);
+    return Object.keys(porDia).sort().map(date => {
+      const a = agregarCampanhas(porDia[date]);
+      return { date, gasto: a.gasto, gastoLeads: a.gastoLeads, leads: a.leads, visitas: a.visitas };
+    });
   } catch { return []; }
 }
 
@@ -1138,7 +1138,7 @@ function gerarDemo() {
     const cpl = gastoLeads / leads;
     const convertidos = Math.max(0, Math.round(leads * (0.12 + Math.random() * 0.28)));
     const taxaConv = leads > 0 ? (convertidos / leads) * 100 : 0;
-    const cac = convertidos > 0 ? gasto / convertidos : 0;
+    const cac = convertidos > 0 ? gastoLeads / convertidos : 0;
 
     // 3 a 5 conjuntos fictícios que somam ~o total da unidade
     const nAdsets = 3 + Math.floor(Math.random() * 3);
@@ -1157,7 +1157,7 @@ function gerarDemo() {
       gasto: +gasto.toFixed(2), gastoLeads,
       leads,
       cpl: +cpl.toFixed(2), visitas,
-      cpv: +(gasto/visitas).toFixed(2),
+      cpv: +((gasto - gastoLeads)/visitas).toFixed(2),
       impressoes, cliques,
       ctr: +((cliques/impressoes)*100).toFixed(2),
       convertidos, taxaConv: +taxaConv.toFixed(2), cac: +cac.toFixed(2),
@@ -1212,7 +1212,7 @@ function render() {
 function renderPerformance(el, dados) {
   const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tV = sum(dados,'visitas');
   const tConv = sum(dados,'convertidos');
-  const cplM = tL > 0 ? tGL/tL : 0, cpvM = tV > 0 ? tG/tV : 0;
+  const cplM = tL > 0 ? tGL/tL : 0, cpvM = tV > 0 ? Math.max(0, tG - tGL)/tV : 0; // visita: só gasto das campanhas de perfil
   const maxG = Math.max(...dados.map(d => d.gasto));
 
   const pvG = getPrevSum('gasto'), pvGL = getPrevSum('gastoLeads'), pvL = getPrevSum('leads'), pvV = getPrevSum('visitas');
@@ -1285,18 +1285,20 @@ function cacCell(d) {
 
 // ── FUNIL DE CONVERSÃO: Investimento → Leads → Convertidos ──
 function funnelSection(dados) {
-  const tG = sum(dados,'gasto'), tL = sum(dados,'leads'), tConv = sum(dados,'convertidos');
-  const f = calcularFunil({ gasto: tG, gastoLeads: sum(dados,'gastoLeads'), leads: tL, convertidos: tConv });
+  // Funil usa só o investimento em campanhas de leads; visitas ao perfil ficam fora da análise de custo.
+  const tG = sum(dados,'gasto'), tGL = sum(dados,'gastoLeads'), tL = sum(dados,'leads'), tConv = sum(dados,'convertidos');
+  const f = calcularFunil({ gastoLeads: tGL, leads: tL, convertidos: tConv });
   const cplM = f.cpl || 0, convPct = f.taxaConv || 0, cacM = f.cac || 0;
 
   return `<div class="card funnel-card">
-    <div class="card-hd"><div class="card-title">Funil de Conversão</div><div class="chip">Investimento → Leads → Convertidos</div></div>
+    <div class="card-hd"><div class="card-title">Funil de Conversão</div><div class="chip">Investimento em leads → Leads → Convertidos</div></div>
     <div class="funnel-row">
       <div class="funnel-step">
         <div class="funnel-icon">💰</div>
-        <div class="funnel-label">Investimento</div>
-        <div class="funnel-val">R$ ${numSpan(tG,2)}</div>
+        <div class="funnel-label">Investimento em leads</div>
+        <div class="funnel-val">R$ ${numSpan(tGL,2)}</div>
         <div class="funnel-bar"><div class="funnel-fill" style="width:100%"></div></div>
+        <div class="funnel-sub">+ R$ ${fmt(Math.max(0, tG - tGL))} em visitas ao perfil (fora do cálculo)</div>
       </div>
       <div class="funnel-arrow">→</div>
       <div class="funnel-step">
@@ -1448,8 +1450,10 @@ function renderConjuntos(el, dados) {
   }
 
   const comLeads = todos.filter(a => a.leads > 0 && a.cpl > 0);
+  // CPL médio só com conjuntos de campanhas de leads (conjuntos de visita ao perfil ficam fora)
+  const deLeads = todos.filter(a => a.ehLeads ?? a.leads > 0);
   const tG = sum(todos,'gasto'), tL = sum(todos,'leads');
-  const cplM = tL>0 ? tG/tL : 0;
+  const cplM = tL>0 ? sum(deLeads,'gasto')/tL : 0;
   const melhor = comLeads.length ? comLeads.reduce((a,b)=>a.cpl<=b.cpl?a:b) : null;
 
   el.innerHTML += `<div class="kpi-grid stagger">
@@ -1619,11 +1623,11 @@ function dailySeries(dados, field) {
   return Object.keys(map).sort().map(k => map[k]);
 }
 
-// Série diária de CPL médio (gasto de todas as unidades / leads de todas, por dia).
+// Série diária de CPL médio (gasto em campanhas de leads de todas as unidades / leads de todas, por dia).
 function dailyCplSeries(dados) {
   const gMap = {}, lMap = {};
   dados.forEach(d => (d.daily || []).forEach(p => {
-    gMap[p.date] = (gMap[p.date] || 0) + (p.gasto || 0);
+    gMap[p.date] = (gMap[p.date] || 0) + (p.gastoLeads ?? p.gasto ?? 0);
     lMap[p.date] = (lMap[p.date] || 0) + (p.leads || 0);
   }));
   return Object.keys(gMap).sort().map(k => lMap[k] > 0 ? gMap[k] / lMap[k] : 0);
@@ -1926,8 +1930,9 @@ async function buscarSemanaRelatorio({ since, until }) {
   // Totais de custo/taxa só com unidades que têm dado do Meta — senão as matrículas de uma
   // unidade sem gasto conhecido baixariam artificialmente o custo por matrícula geral.
   const comMeta = linhas.filter(l => !l.erroMeta);
-  const base = { gasto: sum(comMeta, 'gasto'), gastoLeads: sum(comMeta, 'gastoLeads'), leads: sum(comMeta, 'leads'), convertidos: rdOk ? sum(comMeta, 'convertidos') : null };
-  const tot = { ...base, ...calcularFunil(base), convertidosTodos: rdOk ? sum(linhas, 'convertidos') : null };
+  const base = { gastoLeads: sum(comMeta, 'gastoLeads'), leads: sum(comMeta, 'leads'), convertidos: rdOk ? sum(comMeta, 'convertidos') : null };
+  const tot = { ...base, ...calcularFunil(base), convertidosTodos: rdOk ? sum(linhas, 'convertidos') : null,
+    gastoPerfil: sum(comMeta, 'gastoPerfil'), visitas: sum(comMeta, 'visitas') };
   const dados = { since, until, linhas, tot, rdOk, rdIncompleto: !!conv.truncated };
   relCache[key] = dados;
   return dados;
@@ -1995,9 +2000,9 @@ function relVar(cur, prev, bomQuandoSobe, emPontos = false) {
 function renderRelatorio(r, ant) {
   const t = r.tot, ta = ant.tot;
   const semMeta = r.linhas.filter(l => l.erroMeta);
-  const ativas = r.linhas.filter(l => !l.erroMeta && (l.gasto > 0 || l.leads > 0 || l.convertidos > 0));
+  const ativas = r.linhas.filter(l => !l.erroMeta && (l.gastoLeads > 0 || l.leads > 0 || l.convertidos > 0));
   const inativas = r.linhas.filter(l => !l.erroMeta && !ativas.includes(l));
-  const linhas = [...ativas, ...semMeta].sort((a, b) => (b.convertidos || 0) - (a.convertidos || 0) || (b.leads || 0) - (a.leads || 0) || (b.gasto || 0) - (a.gasto || 0));
+  const linhas = [...ativas, ...semMeta].sort((a, b) => (b.convertidos || 0) - (a.convertidos || 0) || (b.leads || 0) - (a.leads || 0) || (b.gastoLeads || 0) - (a.gastoLeads || 0));
   const geradoEm = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   // Destaques automáticos
@@ -2010,8 +2015,8 @@ function renderRelatorio(r, ant) {
     if (topCac) destaques.push(`<strong>Menor custo por matrícula:</strong> ${topCac.nome} (${brl(topCac.cac)})`);
     const topTaxa = ativas.filter(l => l.leads >= 10 && l.taxaConv != null).sort((a, b) => b.taxaConv - a.taxaConv)[0];
     if (topTaxa && topTaxa.taxaConv > 0) destaques.push(`<strong>Maior taxa de conversão</strong> (mín. 10 leads): ${topTaxa.nome} (${relPct(topTaxa.taxaConv)} — ${topTaxa.convertidos} de ${topTaxa.leads} leads)`);
-    const semVenda = ativas.filter(l => l.gasto > 0 && l.convertidos === 0).sort((a, b) => b.gasto - a.gasto);
-    if (semVenda.length) destaques.push(`<strong>Investimento sem matrícula na semana:</strong> ${semVenda.map(l => `${l.nome} (${brl(l.gasto)})`).join(', ')} — total ${brl(sum(semVenda, 'gasto'))}`);
+    const semVenda = ativas.filter(l => l.gastoLeads > 0 && l.convertidos === 0).sort((a, b) => b.gastoLeads - a.gastoLeads);
+    if (semVenda.length) destaques.push(`<strong>Investimento em leads sem matrícula na semana:</strong> ${semVenda.map(l => `${l.nome} (${brl(l.gastoLeads)})`).join(', ')} — total ${brl(sum(semVenda, 'gastoLeads'))}`);
   } else {
     destaques.push('<strong>Matrículas indisponíveis:</strong> o RD Station não respondeu ao gerar este relatório. Investimento e leads estão completos; gere novamente mais tarde para incluir as matrículas.');
   }
@@ -2025,11 +2030,12 @@ function renderRelatorio(r, ant) {
 
   const tr = (l, i) => l.erroMeta
     ? `<tr><td>${i + 1}</td><td>${l.nome}*</td><td class="rel-na" colspan="3">dados de anúncio indisponíveis</td><td class="rel-conv">${l.convertidos ?? '—'}</td><td class="rel-na">—</td><td class="rel-na">—</td></tr>`
-    : `<tr><td>${i + 1}</td><td>${l.nome}</td><td>${brl(l.gasto)}</td><td>${l.leads}</td><td>${brl(l.cpl)}</td><td class="rel-conv">${l.convertidos ?? '—'}</td><td>${relPct(l.taxaConv)}</td><td>${brl(l.cac)}</td></tr>`;
+    : `<tr><td>${i + 1}</td><td>${l.nome}</td><td>${brl(l.gastoLeads)}</td><td>${l.leads}</td><td>${brl(l.cpl)}</td><td class="rel-conv">${l.convertidos ?? '—'}</td><td>${relPct(l.taxaConv)}</td><td>${brl(l.cac)}</td></tr>`;
 
   const notas = [
     '<strong>Matrícula</strong> = negociação ganha no RD Station, com origem em anúncio pago (Facebook Ads / Busca Paga) e data de ganho dentro da semana. Uma matrícula da semana pode vir de um lead gerado em semanas anteriores, então a taxa de conversão é uma aproximação.',
-    '<strong>CPL</strong> = investimento em campanhas de geração de leads ÷ leads. <strong>Custo por matrícula</strong> = investimento total ÷ matrículas.',
+    '<strong>Investimento em leads</strong> = gasto só das campanhas de geração de leads (objetivo Leads). <strong>CPL</strong> = investimento em leads ÷ leads. <strong>Custo por matrícula</strong> = investimento em leads ÷ matrículas.',
+    `Campanhas de visitas ao perfil do Instagram ficam fora dessa análise de custo: ${brl(t.gastoPerfil)} na semana${t.visitas > 0 ? `, ${t.visitas.toLocaleString('pt-BR')} visitas ao perfil (${brl(t.gastoPerfil / t.visitas)} por visita)` : ''}.`,
   ];
   if (semMeta.length) notas.push(`* ${semMeta.map(l => l.nome).join(', ')}: a conta de anúncio não está acessível pela integração (falta acesso no Business Manager). As matrículas aparecem (e entram no total de matrículas), mas investimento e leads não — por isso a taxa de conversão e o custo por matrícula gerais são calculados sem essas unidades.`);
   if (inativas.length) notas.push(`Sem investimento, leads ou matrículas na semana: ${inativas.map(l => l.nome).join(', ')}.`);
@@ -2048,7 +2054,7 @@ function renderRelatorio(r, ant) {
     </header>
 
     <section class="rel-kpis">
-      ${kpi('Investimento', moeda(t.gasto), relVar(t.gasto, ta.gasto, null))}
+      ${kpi('Investimento em leads', moeda(t.gastoLeads), relVar(t.gastoLeads, ta.gastoLeads, null))}
       ${kpi('Leads', t.leads, relVar(t.leads, ta.leads, true))}
       ${kpi('Custo por lead', moeda(t.cpl), relVar(t.cpl, ta.cpl, false))}
       ${kpi('Matrículas', convKpi, relVar(t.convertidosTodos, ta.convertidosTodos, true))}
@@ -2062,9 +2068,9 @@ function renderRelatorio(r, ant) {
     <div class="rel-h2">Resultado por unidade</div>
     <div class="rel-table-wrap">
       <table class="rel-table">
-        <thead><tr><th></th><th>Unidade</th><th>Investimento</th><th>Leads</th><th>CPL</th><th>Matrículas</th><th>Conversão</th><th>Custo/matrícula</th></tr></thead>
+        <thead><tr><th></th><th>Unidade</th><th>Invest. leads</th><th>Leads</th><th>CPL</th><th>Matrículas</th><th>Conversão</th><th>Custo/matrícula</th></tr></thead>
         <tbody>${linhas.map(tr).join('')}</tbody>
-        <tfoot><tr><td></td><td>Total</td><td>${brl(t.gasto)}</td><td>${t.leads}</td><td>${brl(t.cpl)}</td><td class="rel-conv">${convKpi}</td><td>${relPct(t.taxaConv)}${t.taxaConv != null ? ast : ''}</td><td>${brl(t.cac)}${t.cac != null ? ast : ''}</td></tr></tfoot>
+        <tfoot><tr><td></td><td>Total</td><td>${brl(t.gastoLeads)}</td><td>${t.leads}</td><td>${brl(t.cpl)}</td><td class="rel-conv">${convKpi}</td><td>${relPct(t.taxaConv)}${t.taxaConv != null ? ast : ''}</td><td>${brl(t.cac)}${t.cac != null ? ast : ''}</td></tr></tfoot>
       </table>
     </div>
 

@@ -41,6 +41,11 @@ conta → token, sem precisar saber de antemão quais IDs de conta existem em ca
 - Se a mesma conta aparecer em mais de um token (não deveria acontecer, mas pode indicar um
   usuário do sistema com acesso duplicado entre BMs), o backend mantém o **primeiro token em que
   a conta foi descoberta** e loga um aviso — não derruba a requisição.
+- `/me/adaccounts` só lista contas **atribuídas diretamente** ao usuário do sistema. Uma conta
+  que o token consegue ler por outro caminho (ex: acesso herdado da BM — caso da Parque Prado,
+  antiga Campestre) não aparece ali. Para as contas cadastradas em `shared/funil.js` que a
+  descoberta não achar, o backend testa cada token direto na conta (`resolveToken` em
+  `api/_lib/metaTokens.js`, cache de 1h). IDs fora dessa lista nunca são sondados.
 - Se um token individual estiver inválido/expirado, só a descoberta daquele token falha (fica de
   fora do mapa) — os demais tokens continuam funcionando normalmente.
 - Para adicionar uma nova Business Manager no futuro: gere o token dela (veja abaixo) e acrescente
@@ -115,8 +120,15 @@ Usa exatamente as mesmas regras da dash — nada é reimplementado:
 - `api/_lib/metaTokens.js` + `api/_lib/metaGraph.js` — descoberta conta → token e chamada à Graph API.
 - `api/_lib/rdDeals.js` — matrículas no RD Station (mesmas variáveis `RD_STATION_*` da dash).
 
-Campos por unidade: `gasto`, `leads`, `cpl`, `convertidos`, `taxa_conversao` (em %),
-`custo_por_venda`. Ordenado por `convertidos`. Também traz `totais`, `periodo`,
+Campos por unidade: `gasto` (só campanhas de leads), `gasto_visitas_perfil`, `leads`, `cpl`,
+`convertidos`, `taxa_conversao` (em %), `custo_por_venda`. Ordenado por `convertidos`.
+
+> **Regra de custo (dash, PDF e endpoint):** CPL e custo por matrícula usam **só o gasto das
+> campanhas de geração de leads** (objetivo `OUTCOME_LEADS`, ou que tenham gerado leads). O gasto
+> das campanhas de visita ao perfil do Instagram (objetivo `LINK_CLICKS`) fica fora dessas contas
+> — aparece à parte (aba Branding IG, custo por visita). As visitas ao perfil vêm do campo
+> `results` dos insights (indicador `profile_visit_view`), igual ao Gerenciador de Anúncios.
+> Regras em `shared/funil.js` (`ehCampanhaDeLeads`, `agregarCampanhas`, `calcularFunil`). Também traz `totais`, `periodo`,
 `rd.sem_unidade_identificada` (negociações pagas que não casaram com nenhuma unidade) e
 `rd.criterio_convertido` (fonte/etapa efetivamente aplicadas). Se o RD falhar, Meta continua
 vindo e `rd_erro` explica; unidade sem dado do Meta vem com `meta_erro` e métricas `null`.

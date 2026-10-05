@@ -50,21 +50,42 @@
   // Endpoint de insights por CAMPANHA de uma conta (relativo à Graph API, sem token).
   function insightsCampanhaEndpoint(accId, since, until) {
     const timeRange = JSON.stringify({ since, until });
-    const fields = "spend,actions,impressions,clicks";
+    const fields = "objective,spend,actions,results,impressions,clicks";
     return `act_${accId}/insights?fields=${fields}&time_range=${encodeURIComponent(timeRange)}&level=campaign`;
   }
 
+  // Soma o "resultado" da campanha para um indicador (campo `results` dos insights).
+  function extrairResultado(results, indicador) {
+    if (!results) return 0;
+    return results.filter(r => r.indicator === indicador)
+      .reduce((s, r) => s + (r.values || []).reduce((t, v) => t + parseInt(v.value || 0), 0), 0);
+  }
+
+  const OBJETIVOS_LEADS = ['OUTCOME_LEADS', 'LEAD_GENERATION'];
+
+  // Campanha (ou conjunto) de geração de leads? Pelo OBJETIVO da campanha — assim uma campanha
+  // de formulário que passou o período sem nenhum lead continua contando como gasto de leads —
+  // ou, por segurança, se gerou leads mesmo com outro objetivo. Campanhas de visita ao perfil
+  // do Instagram (objetivo LINK_CLICKS, sem leads) ficam de fora: o gasto delas NÃO entra no
+  // CPL nem no custo por matrícula.
+  function ehCampanhaDeLeads(objective, actions) {
+    if (OBJETIVOS_LEADS.includes(objective)) return true;
+    // Conta 'lead' OU 'onsite_conversion.lead_grouped' (não soma os dois para evitar
+    // double-count — o número de leads usa só 'lead')
+    return extrairAcao(actions, ['lead']) > 0 || extrairAcao(actions, ['onsite_conversion.lead_grouped']) > 0;
+  }
+
   // Agrega as linhas de insights por campanha de uma unidade: gasto de leads separado do gasto
-  // de branding (o CPL usa só o gasto das campanhas de leads).
+  // de visitas ao perfil/branding (CPL e custo por matrícula usam só o gasto de leads).
   function agregarCampanhas(campanhas) {
     let gasto = 0, gastoLeads = 0, leads = 0, visitas = 0, impressoes = 0, cliques = 0;
     for (const c of (campanhas || [])) {
       const g = parseFloat(c.spend || 0);
       const l = extrairAcao(c.actions, ['lead']);
-      // Considera campanha de leads se tiver 'lead' OU 'onsite_conversion.lead_grouped'
-      // (não soma os dois para evitar double-count — usa só 'lead' para o número de leads)
-      const isLeadCamp = l > 0 || extrairAcao(c.actions, ['onsite_conversion.lead_grouped']) > 0;
-      const v = extrairAcao(c.actions, ['instagram_profile_visit']);
+      const isLeadCamp = ehCampanhaDeLeads(c.objective, c.actions);
+      // Visitas ao perfil: a Meta entrega como RESULTADO da campanha (indicador
+      // profile_visit_view, o mesmo número do Gerenciador), não em `actions`.
+      const v = extrairResultado(c.results, 'profile_visit_view') || extrairAcao(c.actions, ['instagram_profile_visit']);
       gasto += g;
       leads += l;
       visitas += v;
@@ -72,20 +93,21 @@
       cliques += parseInt(c.clicks || 0);
       if (isLeadCamp) gastoLeads += g;
     }
-    return { gasto, gastoLeads, leads, visitas, impressoes, cliques };
+    return { gasto, gastoLeads, gastoPerfil: Math.max(0, gasto - gastoLeads), leads, visitas, impressoes, cliques };
   }
 
-  // Métricas do funil Investimento → Leads → Convertidos. Denominador zero → null.
+  // Métricas do funil Investimento em leads → Leads → Convertidos. Denominador zero → null.
   //   cpl      = gasto das campanhas de leads / leads
   //   taxaConv = convertidos / leads, em %
-  //   cac      = gasto total / convertidos (custo por venda)
-  function calcularFunil({ gasto, gastoLeads, leads, convertidos }) {
+  //   cac      = gasto das campanhas de leads / convertidos (custo por matrícula)
+  // O gasto de visitas ao perfil do Instagram não entra em nenhuma dessas contas.
+  function calcularFunil({ gastoLeads, leads, convertidos }) {
     return {
       cpl: leads > 0 ? gastoLeads / leads : null,
       taxaConv: leads > 0 && convertidos != null ? (convertidos / leads) * 100 : null,
-      cac: convertidos > 0 ? gasto / convertidos : null,
+      cac: convertidos > 0 ? gastoLeads / convertidos : null,
     };
   }
 
-  return { UNIDADES, extrairAcao, insightsCampanhaEndpoint, agregarCampanhas, calcularFunil };
+  return { UNIDADES, extrairAcao, insightsCampanhaEndpoint, ehCampanhaDeLeads, agregarCampanhas, calcularFunil };
 });

@@ -3,11 +3,13 @@
   "builds": [
     {
       "src": "api/meta.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["shared/**"] }
     },
     {
       "src": "api/status.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["shared/**"] }
     },
     {
       "src": "api/rdstation.js",
