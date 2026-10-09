@@ -682,7 +682,7 @@ body.rel-open > *:not(#relatorio) { display: none !important; }
         <div class="lud" id="lastUpdateDot"></div>
         <span id="lastUpdateText">—</span>
       </div>
-      <button class="btn btn-ghost" id="btnRelatorio" onclick="abrirRelatorio()" title="Relatório da última semana fechada (seg–dom) para salvar em PDF" aria-label="Relatório semanal">📄<span class="rel-btn-txt"> Relatório semanal</span></button>
+      <button class="btn btn-ghost" id="btnRelatorio" onclick="abrirRelatorio()" title="Relatório da última semana fechada (sexta a quinta) para salvar em PDF" aria-label="Relatório semanal">📄<span class="rel-btn-txt"> Relatório semanal</span></button>
       <button class="btn btn-ghost" id="btnPresent" onclick="togglePresentation()">⛶ Apresentar</button>
       <button class="btn" id="btnRefresh" onclick="fetchAll(true)">↻ Atualizar</button>
     </div>
@@ -1881,7 +1881,7 @@ function aplicarPeriodoPersonalizado() {
 function clearCache() { for (const k in cache) delete cache[k]; }
 
 // ─────────────────────────────────────────────
-// RELATÓRIO SEMANAL — semana fechada (seg–dom, fuso de São Paulo), para salvar em PDF e
+// RELATÓRIO SEMANAL — semana fechada (sexta a quinta, fuso de São Paulo), para salvar em PDF e
 // encaminhar aos líderes. Usa as mesmas regras do Funil (shared/funil.js) e as mesmas chamadas
 // da dash (apiCall / fetchConversoes), comparando com a semana imediatamente anterior.
 // ─────────────────────────────────────────────
@@ -1896,12 +1896,15 @@ function addDiasISO(iso, n) {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }
+// Semana de sexta a quinta: o relatório "vira" toda sexta-feira, cobrindo da sexta anterior até
+// ontem (quinta). A quinta só entra depois de terminada — numa quinta, ainda vale a semana anterior.
 function semanaFechada(offset) {
   const hoje = hojeSaoPaulo();
   const [y, m, d] = hoje.split('-').map(Number);
-  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = domingo
-  const domingo = addDiasISO(hoje, -(dow === 0 ? 7 : dow) - 7 * offset);
-  return { since: addDiasISO(domingo, -6), until: domingo };
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = domingo … 4 = quinta
+  const diasAteQuinta = ((dow - 4 + 7) % 7) || 7;           // última quinta-feira já encerrada
+  const quinta = addDiasISO(hoje, -diasAteQuinta - 7 * offset);
+  return { since: addDiasISO(quinta, -6), until: quinta };
 }
 function dataBR(iso, comAno = true) { const [y, m, d] = iso.split('-'); return comAno ? `${d}/${m}/${y}` : `${d}/${m}`; }
 function brl(v) { return v == null ? '—' : 'R$ ' + fmt(v); }
@@ -2049,7 +2052,7 @@ function renderRelatorio(r, ant) {
       </div>
       <div class="rel-period">
         <strong>${dataBR(r.since, false)} a ${dataBR(r.until)}</strong>
-        <span>Semana de segunda a domingo · gerado em ${geradoEm}</span>
+        <span>Semana de sexta a quinta · gerado em ${geradoEm}</span>
       </div>
     </header>
 

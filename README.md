@@ -96,7 +96,7 @@ sempre `401`. Use um valor longo e aleatório (ex: gerado com `openssl rand -hex
 
 ## Relatório semanal para os líderes (botão "📄 Relatório semanal")
 
-Na barra superior da dash. Abre o relatório da **última semana fechada (segunda a domingo,
+Na barra superior da dash. Abre o relatório da **última semana fechada (sexta a quinta — vira toda sexta-feira,
 fuso de São Paulo)** numa folha A4: investimento, leads, CPL, matrículas, taxa de conversão e
 custo por matrícula (com variação vs semana anterior), destaques automáticos e a tabela por
 unidade. "◀ Anterior" navega para semanas passadas; "⤓ Salvar PDF" abre a impressão do

@@ -9,3 +9,6 @@ skills-lock.json
 .env.local
 .env*.local
 .vercel
+
+# Listas exportadas com dados pessoais de leads (nome/telefone/e-mail) — nunca commitar
+exports/
